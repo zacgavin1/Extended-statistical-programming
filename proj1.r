@@ -27,7 +27,36 @@ for (i in 1:length(direction_starts)){
 
 a <- a[-direction_indexes] # removes all stage directions 
 
-###### Removing character names and arabic numerals #####
+###### (b) Removing character names and arabic numerals #####
+
+# note: some roman numeral I's are likely left in
+a <- a[-which((toupper(a)==a) & (a!= "I") & (a != "A") &(a != "O")) ] 
+
+
+## (c) removing _ and - from words
+a <- gsub("-", "", a ) # it may be better to split the words rather than combining them
+a <- gsub("_", "", a )
+
+## (d) isolating punctuation
+
+# this task is similar to the one from notes
+split_punc <- function(v, marks){
+  regex = paste(marks, collapse="|") # This contains . which will give problems 
+  i_punc <- which(grepl(regex, v)) # using regex to see where elements of marks are
+  vs <- rep("", length(v)+length(i_punc)) # initialise new vector of req length
+  ips <- i_punc+ 1:length(i_punc) # i assume here all punctuation is at end of words
+  vs[ips]<- substr(v[i_punc], nchar(v[i_punc]), nchar(v[i_punc])) 
+  vs[ips-1] <- substr(v[i_punc], 1, nchar(v[i_punc])-1) # words before puncs
+  vs[-(c(ips, ips-1))] <- v[-i_punc] # all other words
+  vs
+}
+
+a <- split_punc(a, c(",",":"))
+
+
+
+
+  
 
 
 
