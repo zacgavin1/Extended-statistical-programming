@@ -2,9 +2,12 @@
 a <- scan("Shakespeare_complete_works.txt",what="character",skip=83,nlines=196043-83,
           fileEncoding="UTF-8")
 
-######## identify and remove stage directions #########
 
-## First we manually fix all bracketing errors in the text
+####### START OF PREPROCESSING ###############
+
+## (a) identify and remove stage directions 
+
+# First we manually fix all bracketing errors in the text
 a[463343] <- "So"    # The original text was erroneously "[So"
 a[322751] <- "Rest.]" # missing end of direction
 
@@ -27,7 +30,7 @@ for (i in 1:length(direction_starts)){
 
 a <- a[-direction_indexes] # removes all stage directions 
 
-###### (b) Removing character names and arabic numerals #####
+## (b) Removing character names and arabic numerals #####
 
 # note: some roman numeral I's are likely left in
 a <- a[-which((toupper(a)==a) & (a!= "I") & (a != "A") &(a != "O")) ] 
@@ -51,10 +54,31 @@ split_punc <- function(v, marks){
   vs
 }
 
-a <- split_punc(a, c(",",":"))
+
+# (e) actually split up the puncs and the words
+a <- split_punc(a, c(",",":"))   
 
 
+# (f) making a lower case 
 
+a <- tolower(a)
+
+
+########### END OF THE PREPROCESSING ############
+
+######## Question 5 ############
+
+words <- unique(a) # b is the set of all words used
+e <- match(a,words) # where each element of a appears in b
+
+occurences <- tabulate(e)
+names(occurences) <- words  # list of occurences, with entry names the words
+
+occurences <- sort(occurences, decreasing=TRUE)
+b <- occurences[1:1000]  # now have the top 1000 words
+
+
+######## Question 6 ###########
 
   
 
