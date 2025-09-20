@@ -56,7 +56,7 @@ split_punc <- function(v, marks){
 
 
 # (e) actually split up the puncs and the words
-a <- split_punc(a, c(",",":"))   
+a <- split_punc(a, c(",","\\.",";","!",":","\\?"))    #need to use \\ before symbols that have regex meaning like .
 
 
 # (f) making a lower case 
@@ -75,15 +75,53 @@ occurences <- tabulate(e)
 names(occurences) <- words  # list of occurences, with entry names the words
 
 occurences <- sort(occurences, decreasing=TRUE)
-b <- occurences[1:1000]  # now have the top 1000 words
+b <- names(occurences[1:1000])  # now have the top 1000 words
 
 
 ######## Question 6 ###########
+n    <- length(a) # note this is the same length as tknised
+mlag <- 4
+# (a)
+tknised <- match(a,b) # now have a tokenised version of a. In instructions he calls this M1
 
-mlag = 4
+
+# (b)
+M <- tknised[1:(n-mlag)] 
+for (col in 2:(mlag+1)){ # loop appends shifted copies of tknised to the right of M
+  M <- cbind(M, tknised[col:(n-mlag-1 + col)])
+}
 
 
+####### Question 7 ###########
+
+next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
+  # need to find where the row matches are for each length string 
+  # need to make probabilites vector corresponding to els of b
+  # need to add probs to it based on how many row matches there are (weighted by w_i)
+  # repeat this for each length of word
+  # then sample from this distbn
   
+  nw_measure <- rep(0, 1000) # i would do length(b) but he doesn't seem to want us to use b in this function
+   
+  for (mc in 1:mlag){
+    
+    # the double loop is ugly but this works to identify where the matches are
+    # its not based off his suggestion from the notes but i couldn't work that
+    for (row in 1:nrow(M)){
+      matches[row] <- isTRUE(all.equal(M[row,mc:mlag], c(1,2,28,30), check.attributes=FALSE))
+    }
+  
+    #now we add to the distribution we've created 
+    
+  
+  }
+}
+
+
+
+
+
+
 
 
 
