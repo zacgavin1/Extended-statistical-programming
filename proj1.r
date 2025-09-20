@@ -80,6 +80,9 @@ b <- occurences[1:1000]  # now have the top 1000 words
 
 ######## Question 6 ###########
 
+mlag = 4
+
+
   
 
 
