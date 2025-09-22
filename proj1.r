@@ -192,31 +192,56 @@ print(start_token)
 ######## Question 9 ###########
 #Now we will simulate from the model until a full stop is reached.Then we can convert the generated tokens back to words and print them nicely
 
-#This is the token for a fullstop, i.e. when we stop
-stop_token <- match(".", b)
+########################
 
-
-story_tokens <- start_token
-
-cat("\n Generating sentence from the starting words: '", b[start_token], "'\n\n", sep="")
-
-repeat {
-  current_key <- story_tokens
+# sentence generator
+sentence <- function(start_token) {
   
-  next_token <- next.word(current_key, M, M1)
+  #initiate loop
+  token.v <- start_token
+  start_word <- b[start_token]
+  output <- c(start_word)
   
-  story_tokens <- c(story_tokens, next_token)
-  
-  if (next_token == stop_token){
-    break
+  #generate first four words
+  for(i in 1:4) {
+    nw.token <- next.word(token.v, M, M1)
+    token.v <- append(token.v, nw.token)
+    nw <- b[nw.token]
+    output <- append(output, nw)
+    if (nw == ".") break
+    #print(token.v) #uncomment to see tokens inputted + token output
+    #print(nw)
   }
+  
+  #generate if longer than four words
+  while(nw != ".") {
+    token.v <- token.v[2:5] #use last four tokens to generate next token
+    nw.token <- next.word(token.v, M, M1)
+    nw <- b[nw.token]
+    token.v <- append(token.v, nw.token)
+    output <- append(output, nw)
+    #print(token.v)
+    #print(nw)
+  }
+  
+  cat(output)
+  
 }
 
-story_words <- b[story_tokens]
+# generate random word from text
+generate_word <- function(word_list) {
+  repeat {
+    start_word <- sample(word_list, 1)
+    start_token <- match(start_word, b)
+    if (!is.na(start_token)) {
+      break
+    }
+  }
+  return(c(start_word, start_token))
+}
 
+start_token <- as.numeric(generate_word(M2)[2])
 
-
-
-
+sentence(start_token)
 
 
