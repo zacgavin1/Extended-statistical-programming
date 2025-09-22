@@ -46,7 +46,6 @@ a <- gsub("_", "", a )
 
 
 ## (d) isolating punctuation
-## this section probably wants to go before the removing capital words, numerals etc, to avoid deleting "I, " etc
 
 # this task is similar to the one from notes
 split_punc <- function(v, marks){
@@ -169,26 +168,51 @@ next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
 
 ######## Question 8 ###########
 
-M2 <- a[grepl("[A-Za-z]", a)]
+#M2 here is the vector of all the words from the vector a excluding punctuation now as well
 
-start_word <- sample(M2, 1)
+M2 <- a[grepl("[A-Za-z]", a)] 
 
-start_token <- match(start_word, b)
+#start_word is a random word chosen from M2
+#We repeat finding this start_word until we don't have an N/A (low prob anyway)
+repeat {
+  start_word <- sample(M2, 1)
+  
+  start_token <- match(start_word, b)
+  
+  if (!is.na(start_token)) {
+    break
+  }
+}
 
+#here we get our start_word and the token for it
+#we get rid of N/A's as we don't have those rare words in tokenised form
+print(start_word)
 print(start_token)
 
-#repeat until no NA, ask if NA's should be excluded
-
-
-
-## print(M2[1:50])
-
 ######## Question 9 ###########
+#Now we will simulate from the model until a full stop is reached.Then we can convert the generated tokens back to words and print them nicely
+
+#This is the token for a fullstop, i.e. when we stop
+stop_token <- match(".", b)
 
 
+story_tokens <- start_token
 
+cat("\n Generating sentence from the starting words: '", b[start_token], "'\n\n", sep="")
 
+repeat {
+  current_key <- story_tokens
+  
+  next_token <- next.word(current_key, M, M1)
+  
+  story_tokens <- c(story_tokens, next_token)
+  
+  if (next_token == stop_token){
+    break
+  }
+}
 
+story_words <- b[story_tokens]
 
 
 
