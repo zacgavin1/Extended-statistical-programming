@@ -1,6 +1,6 @@
 #("Extended-statistical-programming") ## comment out of submitted
-#("C:\Users\shaeh\Desktop\edinburgh-notes\Extended-Statistical-Programming\project-ESP\Extended-statistical-programming") ## comment out of submitted
-0672fca (I have done question 7, please check comments and make sure you understand the logic behind it.)
+#setwd("C:/Users/shaeh/Desktop/edinburgh-notes/Extended-Statistical-Programming/project-ESP/Extended-statistical-programming")
+
 a <- scan("shakespeare.txt",what="character",skip=83,nlines=196043-83,
           fileEncoding="UTF-8")
 
@@ -165,6 +165,23 @@ next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
   return(next_token)
 }
 
+######## Question 8 ###########
+
+M2 <- a[grepl("[A-Za-z]", a)]
+
+start_word <- sample(M2, 1)
+
+start_token <- match(start_word, b)
+
+print(start_token)
+
+#repeat until no NA, ask if NA's should be excluded
+
+
+
+## print(M2[1:50])
+
+######## Question 9 ###########
 
 
 
