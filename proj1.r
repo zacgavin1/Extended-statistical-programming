@@ -1,5 +1,5 @@
 #setwd("Extended-statistical-programming") ## comment out of submitted
-a <- scan("Shakespeare_complete_works.txt",what="character",skip=83,nlines=196043-83,
+a <- scan("shakespeare.txt",what="character",skip=83,nlines=196043-83,
           fileEncoding="UTF-8")
 
 
