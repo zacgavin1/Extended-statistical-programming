@@ -1,4 +1,6 @@
-#setwd("Extended-statistical-programming") ## comment out of submitted
+#("Extended-statistical-programming") ## comment out of submitted
+#("C:\Users\shaeh\Desktop\edinburgh-notes\Extended-Statistical-Programming\project-ESP\Extended-statistical-programming") ## comment out of submitted
+0672fca (I have done question 7, please check comments and make sure you understand the logic behind it.)
 a <- scan("shakespeare.txt",what="character",skip=83,nlines=196043-83,
           fileEncoding="UTF-8")
 
@@ -16,7 +18,7 @@ direction_starts = grep("[", a, fixed = TRUE) # find where stage directions star
 
 direction_ends <- c()
 for (direction in direction_starts) {
-   close_brackets <- grep("]", a[direction:(direction+100)]); # this gets ALL close brackets
+   close_brackets <- grep("]", a[direction:(direction+100)]); # this gets ALL close brackets following an open bracket
    direction_ends <- append(direction_ends, close_brackets[1]) # and then we choose the first one after each [
 }
 
@@ -79,43 +81,93 @@ b <- names(occurences[1:1000])  # now have the top 1000 words
 
 
 ######## Question 6 ###########
-n    <- length(a) # note this is the same length as tknised
+n    <- length(a) # note this is the same length as M1
 mlag <- 4
 # (a)
-tknised <- match(a,b) # now have a tokenised version of a. In instructions he calls this M1
+M1 <- match(a,b) # now have a tokenised version of a. In instructions he calls this M1
 
 
 # (b)
-M <- tknised[1:(n-mlag)] 
-for (col in 2:(mlag+1)){ # loop appends shifted copies of tknised to the right of M
-  M <- cbind(M, tknised[col:(n-mlag-1 + col)])
+M <- M1[1:(n-mlag)] 
+for (col in 2:(mlag+1)){ # loop appends shifted copies of M1 to the right of M
+  M <- cbind(M, M1[col:(n-mlag-1 + col)])
 }
 
 
 ####### Question 7 ###########
-
+#we define the function next.word below. key represents the sequence of word tokens we are using
+#as context to predict the next word. M is the matrix of all 5-word sequences from Shakespeare
+#M1 is the tokenised version of the whole text
+#w is the mixture weights
 next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
-  # need to find where the row matches are for each length string 
-  # need to make probabilites vector corresponding to els of b
-  # need to add probs to it based on how many row matches there are (weighted by w_i)
-  # repeat this for each length of word
-  # then sample from this distbn
-  
-  nw_measure <- rep(0, 1000) # i would do length(b) but he doesn't seem to want us to use b in this function
-   
-  for (mc in 1:mlag){
-    
-    # the double loop is ugly but this works to identify where the matches are
-    # its not based off his suggestion from the notes but i couldn't work that
-    for (row in 1:nrow(M)){
-      matches[row] <- isTRUE(all.equal(M[row,mc:mlag], c(1,2,28,30), check.attributes=FALSE))
-    }
-  
-    #now we add to the distribution we've created 
-    
-  
+
+#mlag is set to 4 as M has 5 columns.
+  mlag <- ncol(M) - 1
+
+#Below, we make sure the key is not too long. The model is built for only 4 words being mlag here.
+#Sps key was c(10, 20, 30, 40, 50, 60) this would become c(30, 40, 50, 60)
+
+    if (length(key) > mlag) {   
+    key <- key[(length(key) - mlag + 1):length(key)]   
   }
+#Here we create an empty vector called "all_next_words". This is all the possible words that can
+#come next.This is our "raffle drum" as we drop a "ticket" for the word that shows up into the vector
+  all_next_words <- c()
+  
+#This for loop below allows us to try out all different lengths. If the input key has 4 words
+#the loop will run 4 times: The first time using the full 4-word context. The second time it
+#will search using the last 3 words of the context. The third time using the last 2 words.
+#Finally using the last word.
+
+  for (i in 1:length(key)) {
+    
+    current_key <- key[i:length(key)]
+    context_len <- length(current_key)
+    cols_to_match <- (mlag - context_len + 1):mlag
+
+#If length(key) = 4. An example for the above code will be, sps i = 2. Current_key <- key[2,4]
+#Context_len = 3 which is the number of words remaining in key. cols_to_match will be (4-3+1):4
+# which is just 2:4 as required because we are going from 2:4.
+
+#For this command from the PDF below, check WA gc
+#An example would be sps we want c(1, 2, 3) and we find that pattern in rows 5, 200 and 512
+#Then matching_rows will be c(5, 200, 512)
+    
+    ii <- colSums(!(t(M[, cols_to_match, drop=FALSE])==current_key), na.rm = TRUE)
+
+    matching_rows <- which(ii == 0)
+
+#Here we collect the "prizes" for our spsd "raffle" This code only runs if we found any matches
+#The first line in the if statement looks at the matching rows and grabs the value from the 5th column
+#The second line takes the tokens and adds it to our "raffle drum", na.omit cleans out any NA's (rare words)
+#i.e. if the sentence "to be," was followed by "alas" (token NA) once and "my" (token 15) twice,
+#This step would add 15 and 15 into all_next_words vector and exclude "alas"
+    
+    if (length(matching_rows) > 0) {
+      next_words_found <- M[matching_rows, mlag + 1]
+      all_next_words <- c(all_next_words, na.omit(next_words_found))
+    }
+  }
+
+#The first part of the if the statement samples one "ticket" from our "raffle drum", if "all_next_words"
+#has any tickets in it. If a token was found more often -> has more tickets -> higher prob of being selected
+#the else part of the if statement just gives up and chooses a random word from the entire book
+#The entire book here is 'M1' which is the tokenised vector
+  
+  if (length(all_next_words) > 0) {
+    next_token <- sample(all_next_words, 1)
+  } else {
+    next_token <- sample(na.omit(M1), 1)
+  }
+
+#Below we return the single token that was chosen which is the model's final answer for the word that
+#comes next.
+  return(next_token)
 }
+
+
+
+
 
 
 
