@@ -30,17 +30,9 @@ for (i in 1:length(direction_starts)){
 
 a <- a[-direction_indexes] # removes all stage directions 
 
-## (b) Removing character names and arabic numerals #####
-
-# note: some roman numeral I's are likely left in
-a <- a[-which((toupper(a)==a) & (a!= "I") & (a != "A") &(a != "O")) ] 
-
-
-## (c) removing _ and - from words
-a <- gsub("-", "", a ) # it may be better to split the words rather than combining them
-a <- gsub("_", "", a )
 
 ## (d) isolating punctuation
+## this section probably wants to go before the removing capital words, numerals etc, to avoid deleting "I, "
 
 # this task is similar to the one from notes
 split_punc <- function(v, marks){
@@ -57,6 +49,20 @@ split_punc <- function(v, marks){
 
 # (e) actually split up the puncs and the words
 a <- split_punc(a, c(",","\\.",";","!",":","\\?"))    #need to use \\ before symbols that have regex meaning like .
+
+
+
+## (b) Removing character names and arabic numerals #####
+
+# note: some roman numeral I's are likely left in
+a <- a[-which((toupper(a)==a) & (a!= "I") & (a != "A") &(a != "O")) ] 
+
+
+## (c) removing _ and - from words
+a <- gsub("-", "", a ) # it may be better to split the words rather than combining them
+a <- gsub("_", "", a )
+
+
 
 
 # (f) making a lower case 
