@@ -1,4 +1,3 @@
-This is the first project
+GROUP PROJECT FOLDER
 
-My name is Zac and I'm from the Isle of Wight.
-
+WE ARE CURRENTLY ON GP1 !!!
