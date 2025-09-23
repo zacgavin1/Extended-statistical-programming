@@ -83,7 +83,7 @@ b <- names(occurences[1:1000])  # now have the top 1000 words
 
 ######## Question 6 ###########
 n    <- length(a) # note this is the same length as M1
-mlag <- 4
+mlag <- 2
 # (a)
 M1 <- match(a,b) # now have a tokenised version of a. In instructions he calls this M1
 
@@ -134,7 +134,7 @@ next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
 #An example would be sps we want c(1, 2, 3) and we find that pattern in rows 5, 200 and 512
 #Then matching_rows will be c(5, 200, 512)
     
-    ii <- colSums(!(t(M[, cols_to_match, drop=FALSE])==current_key), na.rm = TRUE)
+    ii <- colSums(!(t(M[, cols_to_match, drop=FALSE])==current_key))
 
     matching_rows <- which(ii == 0)
 
@@ -203,7 +203,7 @@ sentence <- function(start_token) {
   output <- c(start_word)
   
   #generate first four words
-  for(i in 1:4) {
+  for(i in 1:mlag) {
     nw.token <- next.word(token.v, M, M1)
     token.v <- append(token.v, nw.token)
     nw <- b[nw.token]
@@ -215,7 +215,7 @@ sentence <- function(start_token) {
   
   #generate if longer than four words
   while(nw != ".") {
-    token.v <- token.v[2:5] #use last four tokens to generate next token
+    token.v <- token.v[2:1+mlag] #use last four tokens to generate next token
     nw.token <- next.word(token.v, M, M1)
     nw <- b[nw.token]
     token.v <- append(token.v, nw.token)
