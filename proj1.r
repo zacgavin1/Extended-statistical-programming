@@ -83,7 +83,7 @@ b <- names(occurences[1:1000])  # now have the top 1000 words
 
 ######## Question 6 ###########
 n    <- length(a) # note this is the same length as M1
-mlag <- 2
+mlag <- 4
 # (a)
 M1 <- match(a,b) # now have a tokenised version of a. In instructions he calls this M1
 
@@ -114,6 +114,7 @@ next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
 #Here we create an empty vector called "all_next_words". This is all the possible words that can
 #come next.This is our "raffle drum" as we drop a "ticket" for the word that shows up into the vector
   all_next_words <- c()
+  length_i <- c() # no. of next words in iteration i
   
 #This for loop below allows us to try out all different lengths. If the input key has 4 words
 #the loop will run 4 times: The first time using the full 4-word context. The second time it
@@ -147,18 +148,33 @@ next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
     if (length(matching_rows) > 0) {
       next_words_found <- M[matching_rows, mlag + 1]
       all_next_words <- c(all_next_words, na.omit(next_words_found))
+      length_i <- c(length_i, length(na.omit(next_words_found)))
+    } else {
+      length_i <- c(length_i, 0) # 0 length_i = 0 if no matches
     }
+    #print(c("length_i:", length_i))
   }
+  
+  # table of next words with their corresponding weights
+  next_words_table <- cbind(all_next_words, 
+                            weights = rep(w[1:length(key)], length_i))
+  
+  # uncomment these to see what's happening in each iteration
+    #print(c("length of table:", length(next_words_table[,1])))
+    #print(c("table:"))
+    #print(head(next_words_table))
 
 #The first part of the if the statement samples one "ticket" from our "raffle drum", if "all_next_words"
 #has any tickets in it. If a token was found more often -> has more tickets -> higher prob of being selected
 #the else part of the if statement just gives up and chooses a random word from the entire book
 #The entire book here is 'M1' which is the tokenised vector
   
-  if (length(all_next_words) > 0) {
-    next_token <- sample(all_next_words, 1)
+  if (length(next_words_table[,1]) > 0) {
+    next_token <- sample(next_words_table[,1], 1, prob = next_words_table[, "weights"])
+    #print("true") # uncomment to see which path is taken
   } else {
     next_token <- sample(na.omit(M1), 1)
+    #print("false")
   }
 
 #Below we return the single token that was chosen which is the model's final answer for the word that
@@ -195,7 +211,7 @@ print(start_token)
 ########################
 
 # sentence generator
-sentence <- function(start_token) {
+sentence <- function(start_token, w) {
   
   #initiate loop
   token.v <- start_token
@@ -204,7 +220,7 @@ sentence <- function(start_token) {
   
   #generate first four words
   for(i in 1:mlag) {
-    nw.token <- next.word(token.v, M, M1)
+    nw.token <- next.word(token.v, M, M1, w)
     token.v <- append(token.v, nw.token)
     nw <- b[nw.token]
     output <- append(output, nw)
@@ -215,8 +231,8 @@ sentence <- function(start_token) {
   
   #generate if longer than four words
   while(nw != ".") {
-    token.v <- token.v[2:1+mlag] #use last four tokens to generate next token
-    nw.token <- next.word(token.v, M, M1)
+    token.v <- token.v[2:(1+mlag)] #use last four tokens to generate next token
+    nw.token <- next.word(token.v, M, M1, w)
     nw <- b[nw.token]
     token.v <- append(token.v, nw.token)
     output <- append(output, nw)
@@ -242,6 +258,7 @@ generate_word <- function(word_list) {
 
 start_token <- as.numeric(generate_word(M2)[2])
 
-sentence(start_token)
+sentence(start_token, w = c(1, 1, 1, 1))
+sentence(start_token, w = c(1000, 100, 10, 1))
 
 
