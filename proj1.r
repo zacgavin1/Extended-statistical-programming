@@ -142,7 +142,7 @@ next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
   
   #### 3 - Assign Weights ####
   # assign weights to next-words corresponding to length of matched string
-  weights <- rep(w[1:length(key)], length_i)
+  weights <- rep(w[1:length(key)]/length_i, length_i) #normalize within lengths
   next_words_table <- cbind(all_next_words, weights = weights)
   
   #### 4 - Pick a Word ####
@@ -189,14 +189,14 @@ sentence <- function(start_token, w = c(1, 1, 1, 1)) {
   # initialize loop with start token
   token.v <- start_token
   start_word <- b[start_token]
-  output <- c(start_word)
+  output_list <- c(start_word)
   
   # generate first mlag words
   for(i in 1:mlag) {
     nw.token <- next.word(token.v, M, M1, w)
     token.v <- append(token.v, nw.token)
     nw <- b[nw.token]
-    output <- append(output, nw)
+    output_list <- append(output_list, nw)
     if (nw == ".") break
   }
   
@@ -206,14 +206,22 @@ sentence <- function(start_token, w = c(1, 1, 1, 1)) {
     nw.token <- next.word(token.v, M, M1, w)
     nw <- b[nw.token]
     token.v <- append(token.v, nw.token)
-    output <- append(output, nw)
+    output_list <- append(output_list, nw)
   }
   
-  # generate sentence
+  # generate sentence with any punctuation collapsed onto the previous word
+  output <- c()
+  for (i in 1:length(output_list)) {
+    if (grepl("[A-Za-z]", output_list[i]) == TRUE) {
+      output <- append(output, output_list[i])
+      output <- paste(output, collapse = " ")
+    } else {
+      output <- append(output, output_list[i])
+      output <- paste(output, collapse = "")
+    }
+  }
   cat(output)
 }
 
 sentence(start_token)
 sentence(start_token, w = c(1000, 100, 10, 1))
-
-
