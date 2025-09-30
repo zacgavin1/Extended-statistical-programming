@@ -96,155 +96,77 @@ for (col in 2:(mlag+1)){ # loop appends shifted copies of M1 to the right of M
 
 
 ####### Question 7 ###########
-#we define the function next.word below. key represents the sequence of word tokens we are using
-#as context to predict the next word. M is the matrix of all 5-word sequences from Shakespeare
-#M1 is the tokenised version of the whole text
-#w is the mixture weights
+
+# pick a next-word based on key (sequence of tokens), M, M1, w (weights)
 next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
-
-#mlag is set to 4 as M has 5 columns.
-  mlag <- ncol(M) - 1
-
-#Below, we make sure the key is not too long. The model is built for only 4 words being mlag here.
-#Sps key was c(10, 20, 30, 40, 50, 60) this would become c(30, 40, 50, 60)
-
-    if (length(key) > mlag) {   
+  
+  ###### 1 - Set-Up ######
+  mlag <- ncol(M) - 1 # use first mlag cols to come up with next word
+  
+  if (length(key) > mlag) { # only use the last mlag tokens
     key <- key[(length(key) - mlag + 1):length(key)]   
   }
-#Here we create an empty vector called "all_next_words". This is all the possible words that can
-#come next.This is our "raffle drum" as we drop a "ticket" for the word that shows up into the vector
-  all_next_words <- c()
-  length_i <- c() # no. of next words in iteration i
   
-#This for loop below allows us to try out all different lengths. If the input key has 4 words
-#the loop will run 4 times: The first time using the full 4-word context. The second time it
-#will search using the last 3 words of the context. The third time using the last 2 words.
-#Finally using the last word.
-
+  all_next_words <- c() # initialize list of next-words to sample from
+  length_i <- c() # no. of next-words in iteration i
+  
+  ##### 2 - Search for Next Words ######
+  # find key match of length mlag, length mlag - 1, ..., 1
   for (i in 1:length(key)) {
     
-    current_key <- key[i:length(key)]
-    context_len <- length(current_key)
-    cols_to_match <- (mlag - context_len + 1):mlag
-
-#If length(key) = 4. An example for the above code will be, sps i = 2. Current_key <- key[2,4]
-#Context_len = 3 which is the number of words remaining in key. cols_to_match will be (4-3+1):4
-# which is just 2:4 as required because we are going from 2:4.
-
-#For this command from the PDF below, check WA gc
-#An example would be sps we want c(1, 2, 3) and we find that pattern in rows 5, 200 and 512
-#Then matching_rows will be c(5, 200, 512)
+    ### 2a - Pick columns to match key ###
+    current_key <- key[i:length(key)] # use last mlag - i + 1 tokens of key
+    context_len <- length(current_key)  
+    cols_to_match <- (mlag - context_len + 1):mlag # which cols in M to match
     
+    ### 2b - Find matches ###
+    # return F if key[j] matches M[k, j] for some row k of M, T otherwise
     ii <- colSums(!(t(M[, cols_to_match, drop=FALSE])==current_key))
-
+    # if sum of components in a row = 0, entire key matches
     matching_rows <- which(ii == 0)
-
-#Here we collect the "prizes" for our spsd "raffle" This code only runs if we found any matches
-#The first line in the if statement looks at the matching rows and grabs the value from the 5th column
-#The second line takes the tokens and adds it to our "raffle drum", na.omit cleans out any NA's (rare words)
-#i.e. if the sentence "to be," was followed by "alas" (token NA) once and "my" (token 15) twice,
-#This step would add 15 and 15 into all_next_words vector and exclude "alas"
     
-    if (length(matching_rows) > 0) {
+    ### 2c - Store next-words and no. of next-words ###
+    if (length(matching_rows) > 0) { # if there is a matching row
+      
+      # get last column of M (possible next-words) for matching rows
       next_words_found <- M[matching_rows, mlag + 1]
+      # collect found next-words, omitting rare words (NA's)
       all_next_words <- c(all_next_words, na.omit(next_words_found))
+      # store no. of (non-rare) next-words found in iteration i
       length_i <- c(length_i, length(na.omit(next_words_found)))
-    } else {
-      length_i <- c(length_i, 0) # 0 length_i = 0 if no matches
+      
+    } else { # if there is not a matching row
+      length_i <- c(length_i, 0) # length_i = 0 if no matches
     }
-    #print(c("length_i:", length_i))
+  } # end for-loop
+  
+  #### 3 - Assign Weights ####
+  # assign weights to next-words corresponding to length of matched string
+  weights <- rep(w[1:length(key)], length_i)
+  next_words_table <- cbind(all_next_words, weights = weights)
+  
+  #### 4 - Pick a Word ####
+  # pick a next-word
+  if (nrow(next_words_table) > 0) { # if there are next-words found
+    # sample from all possible next-words w/ assigned prob. weights
+    next_token <- sample(next_words_table[ , "all_next_words"], 
+                         1, 
+                         prob = next_words_table[ , "weights"])
+  } else { # if no next-words are found
+    next_token <- sample(na.omit(M1), 1) # sample from all words in text
   }
   
-  # table of next words with their corresponding weights
-  next_words_table <- cbind(all_next_words, 
-                            weights = rep(w[1:length(key)], length_i))
-  
-  # uncomment these to see what's happening in each iteration
-    #print(c("length of table:", length(next_words_table[,1])))
-    #print(c("table:"))
-    #print(head(next_words_table))
-
-#The first part of the if the statement samples one "ticket" from our "raffle drum", if "all_next_words"
-#has any tickets in it. If a token was found more often -> has more tickets -> higher prob of being selected
-#the else part of the if statement just gives up and chooses a random word from the entire book
-#The entire book here is 'M1' which is the tokenised vector
-  
-  if (length(next_words_table[,1]) > 0) {
-    next_token <- sample(next_words_table[,1], 1, prob = next_words_table[, "weights"])
-    #print("true") # uncomment to see which path is taken
-  } else {
-    next_token <- sample(na.omit(M1), 1)
-    #print("false")
-  }
-
-#Below we return the single token that was chosen which is the model's final answer for the word that
-#comes next.
+  #### 5 - Output ####
   return(next_token)
 }
 
+
 ######## Question 8 ###########
 
-#M2 here is the vector of all the words from the vector a excluding punctuation now as well
-
+# remove punctuation to make list exclusively of words to sample from
 M2 <- a[grepl("[A-Za-z]", a)] 
 
-#start_word is a random word chosen from M2
-#We repeat finding this start_word until we don't have an N/A (low prob anyway)
-repeat {
-  start_word <- sample(M2, 1)
-  
-  start_token <- match(start_word, b)
-  
-  if (!is.na(start_token)) {
-    break
-  }
-}
-
-#here we get our start_word and the token for it
-#we get rid of N/A's as we don't have those rare words in tokenised form
-print(start_word)
-print(start_token)
-
-######## Question 9 ###########
-#Now we will simulate from the model until a full stop is reached.Then we can convert the generated tokens back to words and print them nicely
-
-########################
-
-# sentence generator
-sentence <- function(start_token, w) {
-  
-  #initiate loop
-  token.v <- start_token
-  start_word <- b[start_token]
-  output <- c(start_word)
-  
-  #generate first four words
-  for(i in 1:mlag) {
-    nw.token <- next.word(token.v, M, M1, w)
-    token.v <- append(token.v, nw.token)
-    nw <- b[nw.token]
-    output <- append(output, nw)
-    if (nw == ".") break
-    #print(token.v) #uncomment to see tokens inputted + token output
-    #print(nw)
-  }
-  
-  #generate if longer than four words
-  while(nw != ".") {
-    token.v <- token.v[2:(1+mlag)] #use last four tokens to generate next token
-    nw.token <- next.word(token.v, M, M1, w)
-    nw <- b[nw.token]
-    token.v <- append(token.v, nw.token)
-    output <- append(output, nw)
-    #print(token.v)
-    #print(nw)
-  }
-  
-  cat(output)
-  
-}
-
-# generate random word from text
+# generate token of random common word from text
 generate_word <- function(word_list) {
   repeat {
     start_word <- sample(word_list, 1)
@@ -253,12 +175,45 @@ generate_word <- function(word_list) {
       break
     }
   }
-  return(c(start_word, start_token))
+  return(start_token)
 }
 
-start_token <- as.numeric(generate_word(M2)[2])
+start_token <- generate_word(M2)
 
-sentence(start_token, w = c(1, 1, 1, 1))
+######## Question 9 ###########
+
+# sentence generator
+# generate token based on previous token(s) until full stop is generated
+sentence <- function(start_token, w = c(1, 1, 1, 1)) {
+  
+  # initialize loop with start token
+  token.v <- start_token
+  start_word <- b[start_token]
+  output <- c(start_word)
+  
+  # generate first mlag words
+  for(i in 1:mlag) {
+    nw.token <- next.word(token.v, M, M1, w)
+    token.v <- append(token.v, nw.token)
+    nw <- b[nw.token]
+    output <- append(output, nw)
+    if (nw == ".") break
+  }
+  
+  # generate word if start token > mlag words
+  while(nw != ".") {
+    token.v <- token.v[2:(1+mlag)] # use last mlag - 1 tokens
+    nw.token <- next.word(token.v, M, M1, w)
+    nw <- b[nw.token]
+    token.v <- append(token.v, nw.token)
+    output <- append(output, nw)
+  }
+  
+  # generate sentence
+  cat(output)
+}
+
+sentence(start_token)
 sentence(start_token, w = c(1000, 100, 10, 1))
 
 
