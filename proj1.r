@@ -1,3 +1,9 @@
+# Zachary Gavin s2222962, Shaeroz Khalid ..., Brandon Causing ...
+# Zachary Gavin: Preprocessing, setting up M and b, tokenized etc (Q4-6), debugging and commenting
+# Shaeroz Khalid: next.word function and code to find starting word, debuging and commenting
+# Brandon Causing: sentence function, altering next.word to include weights, debugging and commenting
+# division of work was close to 1/3 each 
+
 #setwd("Extended-statistical-programming") ## comment out of submitted
 #setwd("C:/Users/shaeh/Desktop/edinburgh-notes/Extended-Statistical-Programming/project-ESP/Extended-statistical-programming") ## comment out of submitted
 #setwd("C:/Users/Brandon Causing/Downloads/Extended Statistical Programming/Extended-statistical-programming")
@@ -19,8 +25,8 @@ direction_starts = grep("[", a, fixed = TRUE) # find where stage directions star
 
 direction_ends <- c()
 for (direction in direction_starts) {
-   close_brackets <- grep("]", a[direction:(direction+100)]); # this gets ALL close brackets following an open bracket
-   direction_ends <- append(direction_ends, close_brackets[1]) # and then we choose the first one after each [
+   close_brackets <- grep("]", a[direction:(direction+100)]); # this gets all closed brackets in the following 100 words from an open bracket
+   direction_ends <- append(direction_ends, close_brackets[1]) # and then we choose the first appearance after each [
 }
 
 
@@ -101,7 +107,7 @@ for (col in 2:(mlag+1)){ # loop appends shifted copies of M1 to the right of M
 next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
   
   ###### 1 - Set-Up ######
-  mlag <- ncol(M) - 1 # use first mlag cols to come up with next word
+  mlag <- ncol(M) - 1 # define mlag in terms of function argument M
   
   if (length(key) > mlag) { # only use the last mlag tokens
     key <- key[(length(key) - mlag + 1):length(key)]   
@@ -141,8 +147,8 @@ next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
   } # end for-loop
   
   #### 3 - Assign Weights ####
-  # assign weights to next-words corresponding to length of matched string
-  weights <- rep(w[1:length(key)], length_i)
+  # assign weights to next-words corresponding to length of matched string. vectorised form of rep is used here
+  weights <- rep(w[1:length(key)]/length_i, length_i) # weights are w_i/n_i, where n_i is number of matches found with context length (mlag-i+1)
   next_words_table <- cbind(all_next_words, weights = weights)
   
   #### 4 - Pick a Word ####
@@ -167,7 +173,7 @@ next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
 M2 <- a[grepl("[A-Za-z]", a)] 
 
 # generate token of random common word from text
-generate_word <- function(word_list) {
+generate_word <- function(word_list,b) {
   repeat {
     start_word <- sample(word_list, 1)
     start_token <- match(start_word, b)
@@ -178,13 +184,13 @@ generate_word <- function(word_list) {
   return(start_token)
 }
 
-start_token <- generate_word(M2)
+start_token <- generate_word(M2,b)
 
 ######## Question 9 ###########
 
 # sentence generator
 # generate token based on previous token(s) until full stop is generated
-sentence <- function(start_token, w = c(1, 1, 1, 1)) {
+sentence <- function(start_token, M, M1, b, w = c(1, 1, 1, 1)) {
   
   # initialize loop with start token
   token.v <- start_token
@@ -213,7 +219,7 @@ sentence <- function(start_token, w = c(1, 1, 1, 1)) {
   cat(output)
 }
 
-sentence(start_token)
-sentence(start_token, w = c(1000, 100, 10, 1))
+sentence(start_token, M, M1, b)
+sentence(start_token, M, M1, b, w = c(1000, 100, 10, 1))
 
 
