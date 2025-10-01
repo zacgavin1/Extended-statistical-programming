@@ -78,11 +78,12 @@ split_punc <- function(v, marks){
   vs
 }
 
+
 # (e) call function to split up the puncs and the words
 a <- split_punc(a, marks = c(",","\\.",";","!",":","\\?"))    #need to use \\ before symbols that have regex meaning like .
 
-# (f) making whole text lower case 
 
+# (f) making whole text lower case 
 a <- tolower(a)
 
 
@@ -160,7 +161,6 @@ next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
   } # end for-loop
   
   #### 3 - Assign Weights ####
-
   # assign weights to next-words corresponding to length of matched string. vectorised form of rep is used here
   weights <- rep(w[1:length(key)]/length_i, length_i) # weights are w_i/n_i, where n_i is number of matches found with context length (mlag-i+1)
   next_words_table <- cbind(all_next_words, weights = weights)
@@ -187,24 +187,23 @@ next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
 M2 <- a[grepl("[A-Za-z]", a)] 
 
 # generate token of random common word from text
-generate_word <- function(word_list,b) {
-  repeat {
-    start_word <- sample(word_list, 1)
-    start_token <- match(start_word, b)
-    if (!is.na(start_token)) {
-      break
-    }
-  }
+generate_word <- function(word_list, b_match = b) {
+  
+  start_tokens <- match(word_list, b)
+  start_token <- sample(start_tokens[!is.na(start_tokens)], 1)
   return(start_token)
+  
 }
 
-start_token <- generate_word(M2,b)
+start_token <- generate_word(M2); start_token
 
 ######## Question 9 ###########
 
 # sentence generator
 # generate token based on previous token(s) until full stop is generated
-sentence <- function(start_token, M, M1, b, w = c(1, 1, 1, 1)) {
+sentence <- function(start_token, 
+                     M.seq = M, tokens = M1, b_match = b,
+                     w = c(1, 1, 1, 1)) {
   
   # initialize loop with start token
   token.v <- start_token
@@ -232,7 +231,7 @@ sentence <- function(start_token, M, M1, b, w = c(1, 1, 1, 1)) {
   # generate sentence with any punctuation collapsed onto the previous word
   output <- c()
   for (i in 1:length(output_list)) {
-    if (grepl("[A-Za-z]", output_list[i]) == TRUE) {
+    if (grepl("[A-Za-z]", output_list[i]) == TRUE) { #if string contains letter
       output <- append(output, output_list[i])
       output <- paste(output, collapse = " ")
     } else {
@@ -243,5 +242,5 @@ sentence <- function(start_token, M, M1, b, w = c(1, 1, 1, 1)) {
   cat(output)
 }
 
-sentence(start_token, M, M1, b)
-sentence(start_token, M, M1, b, w = c(1000, 100, 10, 1))
+sentence(start_token)
+sentence(start_token, w = c(1000, 100, 10, 1))
