@@ -57,7 +57,7 @@ a <- a[-which((toupper(a)==a) & (a!= "I") & (a != "A") &(a != "O")) ]
 
 
 ## (c) removing _ and - from words
-a <- gsub("-", "", a ) # it may be better to split the words rather than combining them
+a <- gsub("-", "", a ) 
 a <- gsub("_", "", a )
 
 
@@ -65,7 +65,8 @@ a <- gsub("_", "", a )
 
 # v is a string vector, marks is a string vector of characters (where symbols that have 
 # regex meaning are preceded by \\). split_punc picks out all strings in v containing any punctuation,
-# splits the words and the punctuations, and inserts all created strings into new vector vs
+# splits the words and the punctuations into separate strings, and inserts all strings into 
+# new vector vs.
 split_punc <- function(v, marks){
   regex = paste(marks, collapse="|") 
   i_punc <- which(grepl(regex, v)) # returns the indexes of a where there is punctuation
