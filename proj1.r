@@ -188,32 +188,34 @@ M2 <- a[grepl("[A-Za-z]", a)]
 # generate token of random common word from text
 generate_word <- function(word_list, b_match = b) {
   
-  start_tokens <- match(word_list, b)
+  start_tokens <- match(word_list, b_match)
   start_token <- sample(start_tokens[!is.na(start_tokens)], 1)
   return(start_token)
   
 }
 
-start_token <- generate_word(M2); start_token
+start_token <- generate_word(M2)
 
 ######## Question 9 ###########
 
 # sentence generator
 # generate token based on previous token(s) until full stop is generated
 sentence <- function(start_token, 
-                     M.seq = M, tokens = M1, b_match = b,
+                     M.seq = M, M1.tokens = M1, b_match = b,
                      w = c(1, 1, 1, 1)) {
+  
+  mlag <- ncol(M) - 1
   
   # initialize loop with start token
   token.v <- start_token
-  start_word <- b[start_token]
+  start_word <- b_match[start_token]
   output_list <- c(start_word)
   
   # generate first mlag words
   for(i in 1:mlag) {
-    nw.token <- next.word(token.v, M, M1, w)
+    nw.token <- next.word(token.v, M.seq, M1.tokens, w)
     token.v <- append(token.v, nw.token)
-    nw <- b[nw.token]
+    nw <- b_match[nw.token]
     output_list <- append(output_list, nw)
     if (nw == ".") break
   }
@@ -221,8 +223,8 @@ sentence <- function(start_token,
   # generate word if start token > mlag words
   while(nw != ".") {
     token.v <- token.v[2:(1+mlag)] # use last mlag - 1 tokens
-    nw.token <- next.word(token.v, M, M1, w)
-    nw <- b[nw.token]
+    nw.token <- next.word(token.v, M.seq, M1.tokens, w)
+    nw <- b_match[nw.token]
     token.v <- append(token.v, nw.token)
     output_list <- append(output_list, nw)
   }
