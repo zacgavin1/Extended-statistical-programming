@@ -12,6 +12,16 @@ a <- scan("shakespeare.txt",what="character",skip=83,nlines=196043-83,
           fileEncoding="UTF-8")
 
 
+## GENERAL DESCRIPTION
+# The project aim is to make a "Shakespeare text generator" using a Markov chain idea.
+# The first section preprocesses the text, mainly dealing with stage directions and punctuation
+# The next token prediction is based off the idea of feeding in a key of some length, and finding 
+# all matches of that key in the text, where we can then sample from all the words that follow the key
+# in the text. When we predict words, we mix together matches from the previous 1, 2,...,n 
+# words, for some chosen n, to ensure we have some matches. 
+# Finally we feed in a starting word, and then repeatedly sample to produce a full sentence. 
+
+
 ####### START OF PREPROCESSING ###############
 
 ## (a) identify and remove stage directions 
@@ -25,7 +35,7 @@ direction_starts = grep("[", a, fixed = TRUE) # find where stage directions star
 
 direction_ends <- c()
 for (direction in direction_starts) {
-   close_brackets <- grep("]", a[direction:(direction+100)]); # this gets all closed brackets in the following 100 words from an open bracket
+   close_brackets <- grep("]", a[direction:(direction+100)]); # this gets all closed brackets in the 100 words following an open bracket
    direction_ends <- append(direction_ends, close_brackets[1]) # and then we choose the first appearance after each [
 }
 
@@ -53,23 +63,26 @@ a <- gsub("_", "", a )
 
 ## (d) isolating punctuation
 
-# this task is similar to the one from notes
+# v is a string vector, marks is a string vector of characters (where symbols that have 
+# regex meaning are preceded by \\). split_punc picks out all strings in v containing any punctuation,
+# splits the words and the punctuations, and inserts all created strings into new vector vs
 split_punc <- function(v, marks){
-  regex = paste(marks, collapse="|") # This contains . which will give problems 
-  i_punc <- which(grepl(regex, v)) # using regex to see where elements of marks are
+  regex = paste(marks, collapse="|") 
+  i_punc <- which(grepl(regex, v)) # returns the indexes of a where there is punctuation
   vs <- rep("", length(v)+length(i_punc)) # initialise new vector of req length
-  ips <- i_punc+ 1:length(i_punc) # i assume here all punctuation is at end of words
+  ips <- i_punc+ 1:length(i_punc) # assume here all punctuation is at end of words
   vs[ips]<- substr(v[i_punc], nchar(v[i_punc]), nchar(v[i_punc])) 
   vs[ips-1] <- substr(v[i_punc], 1, nchar(v[i_punc])-1) # words before puncs
   vs[-(c(ips, ips-1))] <- v[-i_punc] # all other words
   vs
 }
 
-# (e) actually split up the puncs and the words
-a <- split_punc(a, c(",","\\.",";","!",":","\\?")) # need to use \\ before symbols that have regex meaning like .
 
-# (f) making a lower case 
+# (e) call function to split up the puncs and the words
+a <- split_punc(a, marks = c(",","\\.",";","!",":","\\?"))    #need to use \\ before symbols that have regex meaning like .
 
+
+# (f) making whole text lower case 
 a <- tolower(a)
 
 
@@ -77,18 +90,18 @@ a <- tolower(a)
 
 ######## Question 5 ############
 
-words <- unique(a) # b is the set of all words used
-e <- match(a,words) # where each element of a appears in b
+words <- unique(a) # words is the set of all words used
+e <- match(a,words) # where each element of a occurs first in a (length(e)=length(a))
 
-occurences <- tabulate(e)
-names(occurences) <- words  # list of occurences, with entry names the words
+occurences <- tabulate(e) # length is length(words), with the number of times each word shows up counted
+names(occurences) <- words  # list of occurrences, with entry names the words
 
 occurences <- sort(occurences, decreasing=TRUE)
 b <- names(occurences[1:1000])  # now have the top 1000 words
 
 
 ######## Question 6 ###########
-n    <- length(a) # note this is the same length as M1
+n    <- length(a) 
 mlag <- 4
 # (a)
 M1 <- match(a,b) # now have a tokenised version of a. In instructions he calls this M1
@@ -147,7 +160,6 @@ next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
   } # end for-loop
   
   #### 3 - Assign Weights ####
-
   # assign weights to next-words corresponding to length of matched string. vectorised form of rep is used here
   weights <- rep(w[1:length(key)]/length_i, length_i) # weights are w_i/n_i, where n_i is number of matches found with context length (mlag-i+1)
   next_words_table <- cbind(all_next_words, weights = weights)
