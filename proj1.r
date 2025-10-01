@@ -22,46 +22,55 @@ a <- scan("shakespeare.txt",what="character",skip=83,nlines=196043-83,
 # Finally we feed in a starting word, and then repeatedly sample to produce a full sentence. 
 
 
-####### START OF PREPROCESSING ###############
+####### ------- START OF PREPROCESSING ------- ###############
 
-## (a) identify and remove stage directions 
+# {include description of pre-processing here}
+
+#### --- Identify and remove stage directions --- ####
 
 # First we manually fix all bracketing errors in the text
 a[463343] <- "So"    # The original text was erroneously "[So"
 a[322751] <- "Rest.]" # missing end of direction
 
-
-direction_starts = grep("[", a, fixed = TRUE) # find where stage directions start
+direction_starts = grep("[", a, fixed = TRUE) # find start of stage directions
 
 direction_ends <- c()
 for (direction in direction_starts) {
-   close_brackets <- grep("]", a[direction:(direction+100)]); # this gets all closed brackets in the 100 words following an open bracket
-   direction_ends <- append(direction_ends, close_brackets[1]) # and then we choose the first appearance after each [
+  
+   # get all closed brackets in the 100 words following an open bracket
+   close_brackets <- grep("]", a[direction:(direction+100)])
+   # and then we choose the first appearance after each [
+   direction_ends <- append(direction_ends, close_brackets[1])
+
 }
 
-
-
+# {brief sentence of what this is doing}
 direction_indexes <- c() # to hold positions of stage directions
-# the following loop may be able to be done more nicely by some vector operation
 for (i in 1:length(direction_starts)){ 
-  direction_indexes <- append(direction_indexes, direction_starts[i]:(direction_starts[i]+direction_ends[i]-1)) ;
+  
+  direction_indexes <- append(direction_indexes, 
+                              direction_starts[i]:(direction_starts[i]+direction_ends[i]-1))
+
 }
 
 a <- a[-direction_indexes] # removes all stage directions 
 
 
-## (b) Removing character names and arabic numerals #####
+#### --- Removing character names and Arabic numerals --- #####
 
 # note: some roman numeral I's are likely left in
 a <- a[-which((toupper(a)==a) & (a!= "I") & (a != "A") &(a != "O")) ] 
 
 
-## (c) removing _ and - from words
-a <- gsub("-", "", a ) # it may be better to split the words rather than combining them
+#### --- Removing _ and - from words --- ####
+
+# we combine words at hyphens rather than split them, as it made  sense in more 
+# of the cases in the text
+a <- gsub("-", "", a ) 
 a <- gsub("_", "", a )
 
 
-## (d) isolating punctuation
+#### --- Isolating punctuation --- ####
 
 # v is a string vector, marks is a string vector of characters (where symbols that have 
 # regex meaning are preceded by \\). split_punc picks out all strings in v containing any punctuation,
@@ -78,17 +87,19 @@ split_punc <- function(v, marks){
 }
 
 
-# (e) call function to split up the puncs and the words
-a <- split_punc(a, marks = c(",","\\.",";","!",":","\\?"))    #need to use \\ before symbols that have regex meaning like .
+#### --- Call function to split up the puncs and the words --- ####
+a <- split_punc(a, marks = c(",","\\.",";","!",":","\\?")) # need to use \\ before symbols that have regex meaning like .
 
 
-# (f) making whole text lower case 
+#### --- Making whole text lower case --- ####
 a <- tolower(a)
 
 
-########### END OF THE PREPROCESSING ############
+########### ------ END OF PREPROCESSING ------ ############
 
-######## Question 5 ############
+### {summary of what goes on in this section}
+
+######## ------ Find Most Common Words ------ ############
 
 words <- unique(a) # words is the set of all words used
 e <- match(a,words) # where each element of a occurs first in a (length(e)=length(a))
@@ -100,26 +111,27 @@ occurences <- sort(occurences, decreasing=TRUE)
 b <- names(occurences[1:1000])  # now have the top 1000 words
 
 
-######## Question 6 ###########
+######## ------ Set Up Match Sequences ------ ###########
+
 n    <- length(a) 
 mlag <- 4
-# (a)
+# {summary of what goes on here}
 M1 <- match(a,b) # now have a tokenised version of a. In instructions he calls this M1
 
 
-# (b)
+# {summary of what goes on here}
 M <- M1[1:(n-mlag)] 
 for (col in 2:(mlag+1)){ # loop appends shifted copies of M1 to the right of M
   M <- cbind(M, M1[col:(n-mlag-1 + col)])
 }
 
 
-####### Question 7 ###########
+####### ------ Pick the Next Word ------ ###########
 
 # pick a next-word based on key (sequence of tokens), M, M1, w (weights)
 next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
   
-  ###### 1 - Set-Up ######
+  ###### -- 1 - Set-Up -- ######
   mlag <- ncol(M) - 1 # define mlag in terms of function argument M
   
   if (length(key) > mlag) { # only use the last mlag tokens
@@ -129,22 +141,22 @@ next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
   all_next_words <- c() # initialize list of next-words to sample from
   length_i <- c() # no. of next-words in iteration i
   
-  ##### 2 - Search for Next Words ######
+  ##### -- 2 - Search for Next Words -- ######
   # find key match of length mlag, length mlag - 1, ..., 1
   for (i in 1:length(key)) {
     
-    ### 2a - Pick columns to match key ###
+    ### - 2a - Pick columns to match key - ###
     current_key <- key[i:length(key)] # use last mlag - i + 1 tokens of key
     context_len <- length(current_key)  
     cols_to_match <- (mlag - context_len + 1):mlag # which cols in M to match
     
-    ### 2b - Find matches ###
+    ### - 2b - Find matches - ###
     # return F if key[j] matches M[k, j] for some row k of M, T otherwise
     ii <- colSums(!(t(M[, cols_to_match, drop=FALSE])==current_key))
     # if sum of components in a row = 0, entire key matches
     matching_rows <- which(ii == 0)
     
-    ### 2c - Store next-words and no. of next-words ###
+    ### - 2c - Store next-words and no. of next-words - ###
     if (length(matching_rows) > 0) { # if there is a matching row
       
       # get last column of M (possible next-words) for matching rows
@@ -159,12 +171,12 @@ next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
     }
   } # end for-loop
   
-  #### 3 - Assign Weights ####
+  #### -- 3 - Assign Weights -- ####
   # assign weights to next-words corresponding to length of matched string. vectorised form of rep is used here
   weights <- rep(w[1:length(key)]/length_i, length_i) # weights are w_i/n_i, where n_i is number of matches found with context length (mlag-i+1)
   next_words_table <- cbind(all_next_words, weights = weights)
   
-  #### 4 - Pick a Word ####
+  #### -- 4 - Pick a Word -- ####
   # pick a next-word
   if (nrow(next_words_table) > 0) { # if there are next-words found
     # sample from all possible next-words w/ assigned prob. weights
@@ -175,12 +187,12 @@ next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
     next_token <- sample(na.omit(M1), 1) # sample from all words in text
   }
   
-  #### 5 - Output ####
+  #### -- 5 - Output -- ####
   return(next_token)
 }
 
 
-######## Question 8 ###########
+######## ------ Generate a Start Word ------ ###########
 
 # remove punctuation to make list exclusively of words to sample from
 M2 <- a[grepl("[A-Za-z]", a)] 
@@ -194,9 +206,11 @@ generate_word <- function(word_list, b_match = b) {
   
 }
 
+# generate the start word
 start_token <- generate_word(M2)
 
-######## Question 9 ###########
+
+######## ------ Generate a Sentence ------ ###########
 
 # sentence generator
 # generate token based on previous token(s) until full stop is generated
