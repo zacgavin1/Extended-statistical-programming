@@ -185,7 +185,7 @@ next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
 # remove punctuation to make list exclusively of words to sample from
 M2 <- a[grepl("[A-Za-z]", a)] 
 
-# generate token of random common word from text
+# sample token of random (common) word from text
 generate_word <- function(word_list, b_match = b) {
   
   start_tokens <- match(word_list, b_match)
