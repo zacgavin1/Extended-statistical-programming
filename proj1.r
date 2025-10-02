@@ -260,6 +260,10 @@ sentence <- function(start_token,
   
   # generate first mlag words
   for(i in 1:mlag) {
+    if (start_word == ".") {
+      nw <- start_word
+      break
+    }
     nw.token <- next.word(token.v, M.seq, M1.tokens, w)
     token.v <- append(token.v, nw.token)
     nw <- b_match[nw.token]
