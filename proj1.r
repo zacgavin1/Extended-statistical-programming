@@ -8,26 +8,29 @@
 #setwd("C:/Users/shaeh/Desktop/edinburgh-notes/Extended-Statistical-Programming/project-ESP/Extended-statistical-programming")
 #setwd("C:/Users/Brandon Causing/Downloads/Extended Statistical Programming/Extended-statistical-programming")
 
-a <- scan("shakespeare.txt",what="character",skip=83,nlines=196043-83,
-          fileEncoding="UTF-8")
-
 
 ## GENERAL DESCRIPTION
 # The project aim is to make a "Shakespeare text generator" using a Markov chain idea.
-# The first section preprocesses the text, mainly dealing with stage directions and punctuation
+# The first section pre-processes the text, mainly dealing with stage directions and punctuation.
 # The next token prediction is based off the idea of feeding in a key of some length, and finding 
 # all matches of that key in the text, where we can then sample from all the words that follow the key
-# in the text. When we predict words, we mix together matches from the previous 1, 2,...,n 
-# words, for some chosen n, to ensure we have some matches. 
+# in the text. When we predict next words, we mix together matches from the previous 1, 2,...,n 
+# words, for some chosen n, to ensure we have some matches.
 # Finally we feed in a starting word, and then repeatedly sample to produce a full sentence. 
+
+
+a <- scan("shakespeare.txt",what="character",skip=83,nlines=196043-83,
+          fileEncoding="UTF-8")
+
 
 ###########################################################
 ######### ------- START OF PREPROCESSING ------- ##########
 ###########################################################
 
-# We begin by cleaning the data, meaning removing any stage directions and separating
-# punctuation from words in order to generate proper sentences based only on the dialogue
-# and with accurate sampling probabilities.
+# We begin by removing parts of the text that are not part of the literature itself (i.e 
+# stage directions, character names), and putting the text into a tokenisable form. We do 
+# this to generate proper sentences based only on the dialogue and with accurate sampling 
+# probabilities.
 
 #### --- Identify and remove stage directions --- ####
 
@@ -47,7 +50,7 @@ for (direction in direction_starts) {
    direction_ends <- append(direction_ends, close_brackets[1])
 }
 
-# Collect the entirety of each stage direction
+# Collect indices of all words within stage directions
 direction_indexes <- c() # to hold positions of stage directions
 for (i in 1:length(direction_starts)) {
   dir_start_to_end <- direction_starts[i]:(direction_starts[i]+direction_ends[i]-1)
@@ -125,13 +128,14 @@ b <- names(occurences[1:1000])  # now have the top 1000 words
 
 ###### ----- Set Up Word Contextualisation ----- #######
 
-n <- length(a) 
-mlag <- 4 # maximum lag
+n    <- length(a) 
+mlag <- 4
 
-# tokenize a
+# tokenize a; words not in b (most common words) are tokenenised as NA
 M1 <- match(a,b) 
 
-# matrix of word sequences to match key to that determines next possible words
+# -- rows of M are all (mlag+1) length sequences of (tokenised) words from text
+# -- match input string to rows of M to find set of possible next-words
 M <- M1[1:(n-mlag)] 
 for (col in 2:(mlag+1)){ # loop appends shifted copies of M1 to the right of M
   M <- cbind(M, M1[col:(n-mlag-1 + col)])
