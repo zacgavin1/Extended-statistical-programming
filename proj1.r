@@ -235,8 +235,8 @@ start_token <- generate_word(M2)
 
 ######## ------ Generate a Sentence ------ ###########
 
-# sentence generator
-# generate token based on previous token(s) until full stop is generated
+# sentence generator; input either a single token or character
+# -- generate token based on previous token(s) until full stop is generated
 sentence <- function(start_token, 
                      M.seq = M, M1.tokens = M1, b_match = b,
                      w = rep(1, ncol(M) - 1)) {
@@ -246,7 +246,17 @@ sentence <- function(start_token,
   # initialize loop with start token
   token.v <- start_token
   start_word <- b_match[start_token]
-  output_list <- c(start_word)
+  
+  # flexibility to input characters instead of tokens, whether common or not
+  if (is.character(start_token) == TRUE) { # if character
+    start_word <- start_token
+    if (start_token %in% b) { # if common (character)
+      token.v <- which(b == start_token) 
+    } 
+  } 
+  
+  # initialize sentence
+  output_list <- start_word
   
   # generate first mlag words
   for(i in 1:mlag) {
