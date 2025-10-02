@@ -8,23 +8,25 @@
 #setwd("C:/Users/shaeh/Desktop/edinburgh-notes/Extended-Statistical-Programming/project-ESP/Extended-statistical-programming") ## comment out of submitted
 #setwd("C:/Users/Brandon Causing/Downloads/Extended Statistical Programming/Extended-statistical-programming")
 
+
+## GENERAL DESCRIPTION
+# The project aim is to make a "Shakespeare text generator" using a Markov chain idea.
+# The first section pre-processes the text, mainly dealing with stage directions and punctuation.
+# The next token prediction is based off the idea of feeding in a key of some length, and finding 
+# all matches of that key in the text, where we can then sample from all the words that follow the key
+# in the text. When we predict next words, we mix together matches from the previous 1, 2,...,n 
+# words, for some chosen n, to ensure we have some matches.
+# Finally we feed in a starting word, and then repeatedly sample to produce a full sentence. 
+
+
 a <- scan("shakespeare.txt",what="character",skip=83,nlines=196043-83,
           fileEncoding="UTF-8")
 
 
-## GENERAL DESCRIPTION
-# The project aim is to make a "Shakespeare text generator" using a Markov chain idea.
-# The first section preprocesses the text, mainly dealing with stage directions and punctuation
-# The next token prediction is based off the idea of feeding in a key of some length, and finding 
-# all matches of that key in the text, where we can then sample from all the words that follow the key
-# in the text. When we predict words, we mix together matches from the previous 1, 2,...,n 
-# words, for some chosen n, to ensure we have some matches. 
-# Finally we feed in a starting word, and then repeatedly sample to produce a full sentence. 
-
-
 ####### ------- START OF PREPROCESSING ------- ###############
 
-# {include description of pre-processing here}
+# Removing parts of the text that are not part of the literature itself (i.e stage directions, 
+# character names), and putting the text into a tokenisable form.
 
 #### --- Identify and remove stage directions --- ####
 
@@ -44,7 +46,7 @@ for (direction in direction_starts) {
 
 }
 
-# {brief sentence of what this is doing}
+# create a vector containing all indices of words that are within stage directions.
 direction_indexes <- c() # to hold positions of stage directions
 for (i in 1:length(direction_starts)){ 
   
@@ -97,7 +99,7 @@ a <- tolower(a)
 
 ########### ------ END OF PREPROCESSING ------ ############
 
-### {summary of what goes on in this section}
+### Make a vector of the most common 1000 words
 
 ######## ------ Find Most Common Words ------ ############
 
@@ -115,11 +117,13 @@ b <- names(occurences[1:1000])  # now have the top 1000 words
 
 n    <- length(a) 
 mlag <- 4
-# {summary of what goes on here}
-M1 <- match(a,b) # now have a tokenised version of a. In instructions he calls this M1
+# replaces words in a with when they occur in b. Words not in b are tokenenised as NA
+M1 <- match(a,b) 
 
 
-# {summary of what goes on here}
+# The rows of M are all (mlag+1) length sequences of words (in token form) from a. 
+# To generate a word that comes after an input string, we'll look for matches of the input string
+# in the rows of M
 M <- M1[1:(n-mlag)] 
 for (col in 2:(mlag+1)){ # loop appends shifted copies of M1 to the right of M
   M <- cbind(M, M1[col:(n-mlag-1 + col)])
