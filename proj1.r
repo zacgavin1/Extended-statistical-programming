@@ -128,7 +128,7 @@ b <- names(occurences[1:1000])  # now have the top 1000 words
 
 ###### ----- Set Up Word Contextualisation ----- #######
 
-n    <- length(a) 
+n <- length(a) 
 mlag <- 4
 
 # tokenize a; words not in b (most common words) are tokenenised as NA
@@ -260,10 +260,6 @@ sentence <- function(start_token,
   
   # generate first mlag words
   for(i in 1:mlag) {
-    if (start_word == ".") {
-      nw <- start_word
-      break
-    }
     nw.token <- next.word(token.v, M.seq, M1.tokens, w)
     token.v <- append(token.v, nw.token)
     nw <- b_match[nw.token]
