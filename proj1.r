@@ -1,6 +1,6 @@
-# Zachary Gavin s2222962, Shaeroz Khalid ..., Brandon Causing s2901457
+# Zachary Gavin s2222962, Shaehroz Khalid s2869421, Brandon Causing s2901457
 # Zachary Gavin: Preprocessing, setting up M and b, tokenized etc (Q4-6), debugging and commenting
-# Shaeroz Khalid: next.word function and code to find starting word, debuging and commenting
+# Shaehroz Khalid: next.word function and code to find starting word, debuging and commenting
 # Brandon Causing: sentence function, altering next.word to include weights, debugging and commenting
 # division of work was close to 1/3 each 
 
