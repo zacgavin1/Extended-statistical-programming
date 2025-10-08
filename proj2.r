@@ -35,8 +35,9 @@ get.net <- function(beta, h, nc=15){
   M_cons[upper.tri(M_cons)] <- v_cons
   
   M_cons <- M_cons + t(M_cons)
-  M <- (!H)*M_cons  # removing family connections by multiplying by negated household matrix
-  conns_list <- as.list(as.data.frame(M_cons))
+  M <- (!H)*M_cons  #moving family connections by multiplying by negated household matrix
+  conns_list <- as.list(as.data.frame(matrix(M_cons==1, n,n)))
+  i_list <- lapply(conns_list, which )
   
 }
 
@@ -45,11 +46,16 @@ nseir <- function(beta, h, alink, alpha=c(.1,.01,.01), delta=.2, gamma=.4, nc=15
   n <- length(beta)
   x <- rep(0,n)  # everyone starts out in susceptible state
   x[sample(1:n, pinf*n)] <- 2 # random subset of specified size is infected
+  H <- outer(h,h)
+  
+  b_bar <- sum(beta)/n
+  M_prob <-  nc*outer(beta, beta)/(b_bar^2 *(n-1)) # this matrix is for general mixing daily prob of infection
   
   for(i in 1:nt){
     u <- runif(n) # random variables to compare against
     x[x==2&u<delta] <- 3
     x[x==1&u<gamma] <- 2
+    
     
     
   }
