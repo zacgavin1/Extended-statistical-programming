@@ -1,3 +1,22 @@
+
+
+
+
+
+
+
+
+## GENERAL DESCRIPTION
+
+
+################################################################################
+######### ------- START OF MODEL SETUP AND POPULATION GENERATION ------- #########
+################################################################################
+
+# This section defines the global parameters for the model and generates the
+# base population, assigning each of the 'n' individuals to a household.
+
+
 n <- 1000
 people <- 1:n
 h_max <- 5
@@ -7,9 +26,11 @@ set.seed(13)
 #### Putting people in households
 # this does use more computation than necessary, but its such a tiny prop. of 
 # the total computation here it doesn't really make any difference overall.
-sizes = sample(1:h_max, 1000, replace=TRUE) # generates 1000 household sizes uniform from {1,2,3,4,5}
-h <- rep(1:length(sizes), sizes) # repeats i sizes[i] times. 
-h <- h[1:n] # takes only the first n of these
+#sizes = sample(1:h_max, 1000, replace=TRUE) # generates 1000 household sizes uniform from {1,2,3,4,5}
+#h <- rep(1:length(sizes), sizes) # repeats i sizes[i] times. 
+#h <- h[1:n] # takes only the first n of these
+
+h <- rep(1:n, sample(1:h_max, n, replace = TRUE))[1:n] #Above code written in one line. replace 1000 with n as n can change.
 
 links <- cbind(person=people, household=h)
 
@@ -22,9 +43,11 @@ get.net <- function(beta, h, nc=15){
   
   # this is a bit of a hack to make a "household matrix" from h
   # the H[i,j] is perfect sqaure only if h[i]==h[j], ie if i,j from same hshld
-  H <- matrix(rep(0,n^2),n,n)
-  H[sqrt(outer(h,h))%%1==0]<-1
-  diag(H) <- 0
+  #H <- matrix(rep(0,n^2),n,n)
+  #H[sqrt(outer(h,h))%%1==0]<-1
+  #diag(H) <- 0
+  H <- outer(h,h, "==")
+  daig(H) <- FALSE
   
   b_bar <- sum(beta)/n
   M_prob <-  nc*outer(beta, beta)/(b_bar^2 *(n-1))
