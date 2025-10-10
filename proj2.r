@@ -16,7 +16,7 @@
 # base population, assigning each of the 'n' individuals to a household.
 
 
-n <- 1000
+n <- 10000
 people <- 1:n
 h_max <- 5
 
@@ -71,23 +71,29 @@ get.net <- function(beta, h, nc=15){
 
 get.net2 <- function(beta, h, nc=15){
   n<-length(h)
-  conns <- list()
+  conns_init <- list()
+  conns <- vector(mode="list", length=n)
   for (i in 1:n){
     b <-rbinom(n-i, 1, nc*beta[i]*beta[i+1:n]/(b_bar^2 *(n-1)) )
-    conns[[i]] <- which(b==1, arr.ind=TRUE)
+    conns_init[[i]] <- which(b==1) + i 
   }
   
-  pairs <- cbind( rep(1:n, lapply(conns, length)) , unlist(conns)) # might want this as a list
+  pairs <- cbind( rep(1:n, lapply(conns_init, length)) , unlist(conns_init)) # might want this as a list
   
   pairs <- pairs[h[pairs[,1]] != h[pairs[,2]] , ] # removing family connections.
     
+  for (i in 1:nrow(pairs)){ # putting into a list
+    conns[[pairs[i,1]]] <- append(  conns[[pairs[i,1]]],  pairs[i,2] )
+    conns[[pairs[i,2]]] <- append(  conns[[pairs[i,2]]],  pairs[i,1] )
+  }
   
+  conns
     
 }
 
 
 alink <- get.net(beta, h) # alink is the variable we need to put into nseir
-
+alink2 <-get.net2(beta,h)
 
 
 nseir <- function(beta, h, alink, alpha=c(.1,.01,.01), delta=.2, gamma=.4, nc=15, nt=100, pinf=.005){
