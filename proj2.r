@@ -1,3 +1,14 @@
+## GENERAL DESCRIPTION
+
+
+################################################################################
+######### ------- START OF MODEL SETUP AND POPULATION GENERATION ------- #########
+################################################################################
+
+# This section defines the global parameters for the model and generates the
+# base population, assigning each of the 'n' individuals to a household.
+
+
 n <- 1000
 people <- 1:n
 h_max <- 5
@@ -7,9 +18,13 @@ set.seed(13)
 #### Putting people in households
 # this does use more computation than necessary, but its such a tiny prop. of 
 # the total computation here it doesn't really make any difference overall.
-sizes = sample(1:h_max, 1000, replace=TRUE) # generates 1000 household sizes uniform from {1,2,3,4,5}
-h <- rep(1:length(sizes), sizes) # repeats i sizes[i] times. 
-h <- h[1:n] # takes only the first n of these
+
+#sizes = sample(1:h_max, 1000, replace=TRUE) # generates 1000 household sizes uniform from {1,2,3,4,5}
+#h <- rep(1:length(sizes), sizes) # repeats i sizes[i] times. 
+#h <- h[1:n] # takes only the first n of these
+
+h <- rep(1:n, sample(1:h_max, n, replace = TRUE))[1:n] #Above code written in one line. replace 1000 with n as n can change.
+
 
 links <- cbind(person=people, household=h)
 
@@ -22,14 +37,20 @@ get.net <- function(beta, h, nc=15){
   
   # this is a bit of a hack to make a "household matrix" from h
   # the H[i,j] is perfect sqaure only if h[i]==h[j], ie if i,j from same hshld
-  H <- matrix(rep(0,n^2),n,n)
-  H[sqrt(outer(h,h))%%1==0]<-1
-  diag(H) <- 0
+  H <- outer(h,h, function(x1, x2) x1 == x2) # household connections (1/0)
+  diag(H) <- FALSE # remove self
+  #H <- matrix(rep(0,n^2),n,n)
+  #H[sqrt(outer(h,h))%%1==0]<-1
+  #diag(H) <- 0
+  H <- outer(h,h, "==")
+  diag(H) <- FALSE
+
   
   b_bar <- sum(beta)/n
   M_prob <-  nc*outer(beta, beta)/(b_bar^2 *(n-1))
   v_prob <- M_prob[upper.tri(M_prob)] # getting vector of upper triangular els of M_prob
   v_cons <- rbinom(length(v_prob), 1, v_prob) # generate bernoullis 
+  
   
   M_cons <- matrix(0,nrow=n, ncol=n) # creating new matrix to be filled with bern realisations
   M_cons[upper.tri(M_cons)] <- v_cons
@@ -41,14 +62,39 @@ get.net <- function(beta, h, nc=15){
   
 }
 
-alink <- get.net(beta, h) # alink is the variable we need to put into nseir
+get.net2 <- function(beta, h, nc=15){
+  n <- length(h)
+  b_bar <- sum(beta)/length(beta) 
+  conns_init <- list()
+  conns <- vector(mode="list", length=n)
+  for (i in 1:n){
+    b <- rbinom(n-i, 1, nc*beta[i]*beta[i+1:n]/(b_bar^2 *(n-1)) )
+    conns_init[[i]] <- which(b==1) + i 
+  }
+  
+  pairs <- cbind(rep(1:n, lapply(conns_init, length)), unlist(conns_init)) # might want this as a list
+  
+  pairs <- pairs[h[pairs[,1]] != h[pairs[,2]] , ] # removing family connections.
+    
+  for (i in 1:nrow(pairs)){ # putting into a list
+    conns[[pairs[i,1]]] <- append(conns[[pairs[i,1]]],  pairs[i,2] )
+    conns[[pairs[i,2]]] <- append(conns[[pairs[i,2]]],  pairs[i,1] )
+  }
+  
+  conns
+    
+}
 
+
+alink <- get.net(beta, h) # alink is the variable we need to put into nseir
+alink2 <- get.net2(beta,h)
 
 
 nseir <- function(beta, h, alink, alpha=c(.1,.01,.01), delta=.2, gamma=.4, nc=15, nt=100, pinf=.005){
   n <- length(beta)
   x <- rep(0,n)  # everyone starts out in susceptible state
-  x[sample(1:n, pinf*n)] <- 2 # random subset of specified size is infected
+  num_to_infect <- max(1, round(pinf * n))
+  x[sample(1:n, num_to_infect)] <- 2 # random subset of specified size is infected
   
   H <- outer(h,h, function(x1, x2) x1 == x2) # household connections (1/0)
   diag(H) <- FALSE # remove self
@@ -126,11 +172,40 @@ epi1 <- nseir(beta, h, alink,
               alpha = c(0.5, 0.3, 0.1), gamma = 0.5, delta = 0.1)
 
 # plotting
-plot(x = epi$t, y = epi$S, ylim = c(0, max(epi$S)), 
-     xlab = "day", ylab = "N")
-points(epi$E, col = 4); points(epi$I, col = 2); points(epi$R, col = 3)
-legend(x = "right", y = "center", 
-       legend = c("Susceptible", "Exposed",
-                  "Infected", "Recovered"),
-       fill = c("black", "blue",
-                "red", "green"))
+epi_plot <- function(beta, h, alink, 
+                     alpha = c(0.1, 0.01, 0.01),
+                     delta = 0.2,
+                     gamma = 0.4,
+                     nc = 15, nt = 100, pinf = 0.005,
+                     title = "SEIR Dynamics") {
+  
+  epi <- nseir(beta, h, alink, alpha, delta, gamma, nc, nt, pinf)
+  
+  plot(x = epi$t, y = epi$S, ylim = c(0, max(epi$S)), 
+       xlab = "day", ylab = "N", main = title)
+  points(epi$E, col = 4); points(epi$I, col = 2); points(epi$R, col = 3)
+  
+  #op <- par(cex = 0.7)
+  
+  legend(x = "topright", 
+         legend = c("Susceptible", "Exposed",
+                    "Infected", "Recovered"),
+         fill = c("black", "blue",
+                  "red", "green"),
+         bty = "n")
+  
+}
+
+epi_plot(beta, h, alink, title = "Epidemic with Default Parameters")
+epi_plot(beta, h, alink,
+         alpha = c(0.5, 0.3, 0.1), gamma = 0.5, delta = 0.1,
+         title = "Epidemic with Adjusted Parameters")
+
+
+
+berngen<- function(h, n, beta){
+b_bar <- sum(beta)/n
+M_prob <-  nc*outer(beta, beta)/(b_bar^2 *(n-1))
+v_prob <- M_prob[upper.tri(M_prob)] # getting vector of upper triangular els of M_prob
+v_cons <- rbinom(length(v_prob), 1, v_prob) # generate bernoullis 
+}
