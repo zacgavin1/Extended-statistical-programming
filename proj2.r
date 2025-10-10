@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-n <- 10000
-=======
-
 
 
 
@@ -21,7 +17,6 @@ n <- 10000
 
 
 n <- 1000
->>>>>>> 6275de6fe061928435336922378945c757306d8d
 people <- 1:n
 h_max <- 5
 
@@ -30,17 +25,13 @@ set.seed(13)
 #### Putting people in households
 # this does use more computation than necessary, but its such a tiny prop. of 
 # the total computation here it doesn't really make any difference overall.
-<<<<<<< HEAD
-sizes = sample(1:h_max, n, replace=TRUE) # generates 1000 household sizes uniform from {1,2,3,4,5}
-h <- rep(1:length(sizes), sizes) # repeats i sizes[i] times. 
-h <- h[1:n] # takes only the first n of these
-=======
+
 #sizes = sample(1:h_max, 1000, replace=TRUE) # generates 1000 household sizes uniform from {1,2,3,4,5}
 #h <- rep(1:length(sizes), sizes) # repeats i sizes[i] times. 
 #h <- h[1:n] # takes only the first n of these
 
 h <- rep(1:n, sample(1:h_max, n, replace = TRUE))[1:n] #Above code written in one line. replace 1000 with n as n can change.
->>>>>>> 6275de6fe061928435336922378945c757306d8d
+
 
 links <- cbind(person=people, household=h)
 
@@ -53,16 +44,14 @@ get.net <- function(beta, h, nc=15){
   
   # this is a bit of a hack to make a "household matrix" from h
   # the H[i,j] is perfect sqaure only if h[i]==h[j], ie if i,j from same hshld
-<<<<<<< HEAD
   H <- outer(h,h, function(x1, x2) x1 == x2) # household connections (1/0)
   diag(H) <- FALSE # remove self
-=======
   #H <- matrix(rep(0,n^2),n,n)
   #H[sqrt(outer(h,h))%%1==0]<-1
   #diag(H) <- 0
   H <- outer(h,h, "==")
-  daig(H) <- FALSE
->>>>>>> 6275de6fe061928435336922378945c757306d8d
+  diag(H) <- FALSE
+
   
   b_bar <- sum(beta)/n
   M_prob <-  nc*outer(beta, beta)/(b_bar^2 *(n-1))
@@ -104,7 +93,8 @@ alink <- get.net(beta, h) # alink is the variable we need to put into nseir
 nseir <- function(beta, h, alink, alpha=c(.1,.01,.01), delta=.2, gamma=.4, nc=15, nt=100, pinf=.005){
   n <- length(beta)
   x <- rep(0,n)  # everyone starts out in susceptible state
-  x[sample(1:n, pinf*n)] <- 2 # random subset of specified size is infected
+  num_to_infect <- max(1, round(pinf * n))
+  x[sample(1:n, num_to_infect)] <- 2 # random subset of specified size is infected
   
   H <- outer(h,h, function(x1, x2) x1 == x2) # household connections (1/0)
   diag(H) <- FALSE # remove self
@@ -181,17 +171,22 @@ epi <- nseir(beta, h, alink)
 epi1 <- nseir(beta, h, alink, 
               alpha = c(0.5, 0.3, 0.1), gamma = 0.5, delta = 0.1)
 
+plot_original_dynamics <- function(epi_data, title = "SEIR Dynamics"){
 # plotting
 plot(x = epi$t, y = epi$S, ylim = c(0, max(epi$S)), 
-     xlab = "day", ylab = "N")
+     xlab = "day", ylab = "N", main = title)
 points(epi$E, col = 4); points(epi$I, col = 2); points(epi$R, col = 3)
-legend(x = "right", y = "center", 
+legend(x = "topright", 
        legend = c("Susceptible", "Exposed",
                   "Infected", "Recovered"),
        fill = c("black", "blue",
-                "red", "green"))
+                "red", "green"),
+       bty = "n")
+}
 
-
+par(mfrow = c(1,1))
+plot_original_dynamics(epi, title = "Epidemic with Default Parameters")
+plot_original_dynamics(epi1, title = "Epidemic with Adjusted Parameters")
 
 
 berngen<- function(h, n, beta){
