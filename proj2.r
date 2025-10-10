@@ -1,4 +1,4 @@
-n <- 1000
+n <- 10000
 people <- 1:n
 h_max <- 5
 
@@ -7,7 +7,7 @@ set.seed(13)
 #### Putting people in households
 # this does use more computation than necessary, but its such a tiny prop. of 
 # the total computation here it doesn't really make any difference overall.
-sizes = sample(1:h_max, 1000, replace=TRUE) # generates 1000 household sizes uniform from {1,2,3,4,5}
+sizes = sample(1:h_max, n, replace=TRUE) # generates 1000 household sizes uniform from {1,2,3,4,5}
 h <- rep(1:length(sizes), sizes) # repeats i sizes[i] times. 
 h <- h[1:n] # takes only the first n of these
 
@@ -22,14 +22,14 @@ get.net <- function(beta, h, nc=15){
   
   # this is a bit of a hack to make a "household matrix" from h
   # the H[i,j] is perfect sqaure only if h[i]==h[j], ie if i,j from same hshld
-  H <- matrix(rep(0,n^2),n,n)
-  H[sqrt(outer(h,h))%%1==0]<-1
-  diag(H) <- 0
+  H <- outer(h,h, function(x1, x2) x1 == x2) # household connections (1/0)
+  diag(H) <- FALSE # remove self
   
   b_bar <- sum(beta)/n
   M_prob <-  nc*outer(beta, beta)/(b_bar^2 *(n-1))
   v_prob <- M_prob[upper.tri(M_prob)] # getting vector of upper triangular els of M_prob
   v_cons <- rbinom(length(v_prob), 1, v_prob) # generate bernoullis 
+  
   
   M_cons <- matrix(0,nrow=n, ncol=n) # creating new matrix to be filled with bern realisations
   M_cons[upper.tri(M_cons)] <- v_cons
@@ -40,6 +40,23 @@ get.net <- function(beta, h, nc=15){
   i_list <- lapply(conns_list, which )
   
 }
+
+get.net2 <- function(beta, h, nc=15){
+  n<-length(h)
+  conns <- list()
+  for (i in 1:n){
+    b <-rbinom(n-i, 1, nc*beta[i]*beta[i+1:n]/(b_bar^2 *(n-1)) )
+    conns[[i]] <- which(b==1, arr.ind=TRUE)
+  }
+  
+  pairs <- cbind( rep(1:n, lapply(conns, length)) , unlist(conns)) # might want this as a list
+  
+  pairs <- pairs[h[pairs[,1]] != h[pairs[,2]] , ] # removing family connections.
+    
+  
+    
+}
+
 
 alink <- get.net(beta, h) # alink is the variable we need to put into nseir
 
@@ -134,3 +151,13 @@ legend(x = "right", y = "center",
                   "Infected", "Recovered"),
        fill = c("black", "blue",
                 "red", "green"))
+
+
+
+
+berngen<- function(h, n, beta){
+b_bar <- sum(beta)/n
+M_prob <-  nc*outer(beta, beta)/(b_bar^2 *(n-1))
+v_prob <- M_prob[upper.tri(M_prob)] # getting vector of upper triangular els of M_prob
+v_cons <- rbinom(length(v_prob), 1, v_prob) # generate bernoullis 
+}
