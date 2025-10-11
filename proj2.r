@@ -270,6 +270,110 @@ nseir <- function(beta, h, alink,
 
 
 
+######### optimized v2.0 #############
+nseir <- function(beta, h, alink, 
+                  alpha=c(0.1, 0.01, 0.01), 
+                  delta=.2, 
+                  gamma=.4, 
+                  nc=15, nt=100, pinf=.005) {
+  
+  n <- length(beta)
+  x <- rep(0,n)  # everyone starts out in susceptible state
+  num_to_infect <- max(1, round(pinf*n))
+  x[sample(1:n, num_to_infect)] <- 2 # random subset of specified size is infected
+  
+  # list of who shares a household with each individual
+  hh_index_list <- split(1:n, h) 
+  # remove self from each item in list
+  hh_infect <- vector(mode = "list", length = n)
+  for (i in 1:n) {
+    hh_infect[[i]] <- setdiff(hh_index_list[[h[i]]], i)
+  }
+  
+  b_bar <- sum(beta)/n
+  
+  # initialize i,j pairs of upper triangular matrix
+  ij <- which(upper.tri(matrix(1, n, n)), arr.ind = TRUE)
+  
+  t <- S <- E <- I <- R <- rep(0, nt)
+  t[1] <- 1
+  S[1] <- n - num_to_infect
+  I[1] <- num_to_infect
+  
+  for(i in 2:nt) {
+    
+    u <- runif(n) # random variables to compare against
+    
+    infected_indices <- which(x == 2)
+    
+    
+    # who interacted with someone infected through random mixing
+    if (length(infected_indices) > 0) {
+      
+      mix_infected_contacts <- c()
+      mix_infected_contacts <- cbind(mix_infected_contacts, 
+                                     ij[ij[, 1] %in% infected_indices, , 
+                                        drop = FALSE], 
+                                     NA)
+      
+      # compute prob of interacting only for potential contacts of infected
+      for (j in 1:nrow(mix_infected_contacts)) {
+        
+        product <- beta[mix_infected_contacts[j,1]]*beta[mix_infected_contacts[j,2]]
+        prob_interact <- nc*product/(b_bar^2*(n-1))
+        mix_infected_contacts[j, 3] <- rbinom(1, 1, prob_interact)
+        
+      }
+      
+      # who interacted with someone infected
+      mix_infected_interacted <- which(mix_infected_contacts[ , 3] == 1)
+      mix_infected <- unique(mix_infected_contacts[mix_infected_interacted, 2])
+      
+    } else {
+      mix_infected <- integer(0)
+    }
+    
+    # if in state I (2), prob = delta -> R
+    # if in state E (1), prob = gamma -> I
+    x[x == 2 & u < delta] <- 3
+    x[x == 1 & u < gamma] <- 2
+    
+    # if in state S (0),
+    # -- prob = a_h -> I (2), if in household
+    # -- prob = a_c -> I (2), if in network
+    # -- prob = a_r*P(mixing) -> I (2), regardless
+    newly_exposed <- integer(0)
+    
+    if (length(infected_indices) > 0) {
+      # indices of those in household of someone infected
+      hh_exposed <- unique(unlist(hh_infect[infected_indices]))
+      hh_exposed <- hh_exposed[x[hh_exposed] == 0 & u[hh_exposed] < alpha[1]]
+      
+      # indices of those in regular network of someone infected
+      net_exposed <- unique(unlist(alink[infected_indices]))
+      net_exposed <- net_exposed[x[net_exposed] == 0 & u[net_exposed] < alpha[2]]
+      
+      # indices of those in contact with someone infected via random mixing
+      mix_exposed <- mix_infected[x[mix_infected] == 0 & u[mix_infected] < alpha[3]]
+      
+      # all (unique) indices of those that went from S to E
+      newly_exposed <- unique(c(hh_exposed, net_exposed, mix_exposed))  
+    }
+    
+    x[newly_exposed] <- 1
+    
+    
+    S[i] <- sum(x == 0)
+    E[i] <- sum(x == 1)
+    I[i] <- sum(x == 2)
+    R[i] <- sum(x == 3)
+    t[i] <- i
+    
+  }
+  return(list(t = t, S = S, E = E, I = I, R = R))
+}
+
+
 
 
 
