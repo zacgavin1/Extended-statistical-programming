@@ -5,7 +5,11 @@
 # division of work was close to 1/3 each 
 
 #setwd("Extended-statistical-programming") ## comment out of submitted
+<<<<<<< Updated upstream
 #setwd("C:/Users/shaeh/Desktop/edinburgh-notes/Extended-Statistical-Programming/project-ESP/Extended-statistical-programming")
+=======
+setwd("C:/Users/shaeh/Desktop/edinburgh-notes/Extended-Statistical-Programming/project-ESP/Extended-statistical-programming") ## comment out of submitted
+>>>>>>> Stashed changes
 #setwd("C:/Users/Brandon Causing/Downloads/Extended Statistical Programming/Extended-statistical-programming")
 
 
@@ -90,8 +94,15 @@ split_punc <- function(v, marks){
   vs
 }
 
+<<<<<<< Updated upstream
 
 #### --- Call function to split up the puncs and the words --- ####
+=======
+# (e) Splitting up the punctuation and the words
+a <- split_punc(a, c(",","\\.",";","!",":","\\?"))    #need to use \\ before symbols that have regex meaning like .
+
+# (f) making 'a' lower case 
+>>>>>>> Stashed changes
 
 # need to use \\ before symbols that have regex meaning like "."
 a <- split_punc(a, marks = c(",","\\.",";","!",":","\\?"))
@@ -111,6 +122,7 @@ a <- tolower(a)
 ######### ------ SETTING UP THE GENERATOR ------- #########
 ###########################################################
 
+<<<<<<< Updated upstream
 # We proceed by ranking words by usage and contextualising strings of words to logically
 # pick each following word, given a starting point.
 
@@ -121,9 +133,25 @@ e <- match(a,words) # where each element of a occurs first in a
 
 occurences <- tabulate(e) # count number of times each word shows up
 names(occurences) <- words  # list of occurrences, with entry names the words
+=======
+# (a) Using 'unique' to find the vector of unique words in 'a'. We store this in 'uniqueWords'
+uniqueWords <- unique(a) 
 
+# (b) Creating a numerical index vector 'e' by matching each word in 'a' to its position in 'uniqueWords'
+e <- match(a, uniqueWords) 
+
+# (c) Using 'tabulate' on the index vector 'e' to count the occurrences of each word.
+occurences <- tabulate(e)
+>>>>>>> Stashed changes
+
+# Assigning the actual words from 'uniqueWords' as names to the numerical counts.
+names(occurences) <- uniqueWords  
+
+# (d) Sort the named vector of occurrences in descending order to find the most frequent words
 occurences <- sort(occurences, decreasing=TRUE)
-b <- names(occurences[1:1000])  # now have the top 1000 words
+
+# We extract the names of the top 1000 words to create 'b'
+b <- names(occurences[1:1000])  
 
 
 ###### ----- Set Up Word Contextualisation ----- #######
@@ -185,6 +213,7 @@ next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
     } else { # if there is not a matching row, length_i[i] = 0
       length_i <- c(length_i, 0)
     }
+<<<<<<< Updated upstream
   } # end for-loop
   
   #### -- 3 - Assign Weights -- ####
@@ -206,6 +235,35 @@ next.word <- function(key, M, M1, w=rep(1,ncol(M)-1)){
   }
   
   #### -- 5 - Output -- ####
+=======
+    print(c("length_i:", length_i))
+  }
+  
+  # table of next words with their corresponding weights
+  next_words_table <- cbind(all_next_words, 
+                            weights = rep(w[1:length(key)], length_i))
+  
+  # uncomment these to see what's happening in each iteration
+    print(c("length of table:", length(next_words_table[,1])))
+    print(c("table:"))
+    print(head(next_words_table))
+
+#The first part of the if the statement samples one "ticket" from our "raffle drum", if "all_next_words"
+#has any tickets in it. If a token was found more often -> has more tickets -> higher prob of being selected
+#the else part of the if statement just gives up and chooses a random word from the entire book
+#The entire book here is 'M1' which is the tokenised vector
+  
+  if (length(next_words_table[,1]) > 0) {
+    next_token <- sample(next_words_table[,1], 1, prob = next_words_table[, "weights"])
+    #print("true") # uncomment to see which path is taken
+  } else {
+    next_token <- sample(na.omit(M1), 1)
+    #print("false")
+  }
+
+#Below we return the single token that was chosen which is the model's final answer for the word that
+#comes next.
+>>>>>>> Stashed changes
   return(next_token)
 }
 
