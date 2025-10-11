@@ -1,10 +1,4 @@
 
-
-
-
-
-
-
 ## GENERAL DESCRIPTION
 
 
@@ -51,7 +45,7 @@ get.net <- function(beta, h, nc=15){
   #diag(H) <- 0
   H <- outer(h,h, "==")
   diag(H) <- FALSE
-
+  
   
   b_bar <- sum(beta)/n
   M_prob <-  nc*outer(beta, beta)/(b_bar^2 *(n-1))
@@ -81,14 +75,14 @@ get.net2 <- function(beta, h, nc=15){
   pairs <- cbind( rep(1:n, lapply(conns_init, length)) , unlist(conns_init)) # might want this as a list
   
   pairs <- pairs[h[pairs[,1]] != h[pairs[,2]] , ] # removing family connections.
-    
+  
   for (i in 1:nrow(pairs)){ # putting into a list
     conns[[pairs[i,1]]] <- append(  conns[[pairs[i,1]]],  pairs[i,2] )
     conns[[pairs[i,2]]] <- append(  conns[[pairs[i,2]]],  pairs[i,1] )
   }
   
   conns
-    
+  
 }
 
 
@@ -117,7 +111,7 @@ nseir <- function(beta, h, alink, alpha=c(.1,.01,.01), delta=.2, gamma=.4, nc=15
   #daily_counts <- list(cbind(t = 0, S = n*(1-pinf), E = 0, I = pinf*n, R = 0))
   for(i in 2:nt){
     u <- runif(n) # random variables to compare against
-
+    
     ## random mixing set up
     v_mix <- rbinom(length(v_prob), 1, v_prob) # generate bernoullis 
     
@@ -178,16 +172,16 @@ epi1 <- nseir(beta, h, alink,
               alpha = c(0.5, 0.3, 0.1), gamma = 0.5, delta = 0.1)
 
 plot_original_dynamics <- function(epi_data, title = "SEIR Dynamics"){
-# plotting
-plot(x = epi$t, y = epi$S, ylim = c(0, max(epi$S)), 
-     xlab = "day", ylab = "N", main = title)
-points(epi$E, col = 4); points(epi$I, col = 2); points(epi$R, col = 3)
-legend(x = "topright", 
-       legend = c("Susceptible", "Exposed",
-                  "Infected", "Recovered"),
-       fill = c("black", "blue",
-                "red", "green"),
-       bty = "n")
+  # plotting
+  plot(x = epi$t, y = epi$S, ylim = c(0, max(epi$S)), 
+       xlab = "day", ylab = "N", main = title)
+  points(epi$E, col = 4); points(epi$I, col = 2); points(epi$R, col = 3)
+  legend(x = "topright", 
+         legend = c("Susceptible", "Exposed",
+                    "Infected", "Recovered"),
+         fill = c("black", "blue",
+                  "red", "green"),
+         bty = "n")
 }
 
 par(mfrow = c(1,1))
@@ -196,8 +190,8 @@ plot_original_dynamics(epi1, title = "Epidemic with Adjusted Parameters")
 
 
 berngen<- function(h, n, beta){
-b_bar <- sum(beta)/n
-M_prob <-  nc*outer(beta, beta)/(b_bar^2 *(n-1))
-v_prob <- M_prob[upper.tri(M_prob)] # getting vector of upper triangular els of M_prob
-v_cons <- rbinom(length(v_prob), 1, v_prob) # generate bernoullis 
+  b_bar <- sum(beta)/n
+  M_prob <-  nc*outer(beta, beta)/(b_bar^2 *(n-1))
+  v_prob <- M_prob[upper.tri(M_prob)] # getting vector of upper triangular els of M_prob
+  v_cons <- rbinom(length(v_prob), 1, v_prob) # generate bernoullis 
 }
