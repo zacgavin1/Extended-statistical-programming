@@ -515,7 +515,6 @@ nseir <- function(beta, h, alink,
         }, hh = infected_hh, prob = hh_probs)
       )
       
-      
       # maybe faster?
       # how many people are infected within each network
       net_infected_counts <- mapply(function(lst, index) {
@@ -535,35 +534,33 @@ nseir <- function(beta, h, alink,
       
       # maybe faster? also more correct probabilities
       # who got infected (mixing)
+      v_probs <- c()
+      v_mix_id <- c()
       mix_exposed <- c()
-      for (k in 1:n_infected) {
-        
-        # potential contacts of those infected
-        infected <- infected_indices[k]
-        partners <- (1:n)[-infected]
-        
-        # people who interacted with those infected
-        mix_probs <- nc*beta[infected]*beta[partners]/(b_bar^2*(n-1))
-        which_mix <- which(runif(length(partners)) < mix_probs)
-        which_mix_partners <- partners[which_mix]
-        which_mix_probs <- mix_probs[which_mix]
-        
-        if (length(which_mix_probs) == 0) next
-        
-        # probability of getting infected by at least one infected contact
+      # randomly connect infected people to nc people
+      for (infected in infected_indices) {
+        infect_interact_rand <- unique(sample((1:n)[-infected], nc, 
+                                                replace = TRUE))
+        mix_probs <- beta[infected]*beta[infect_interact_rand]/(b_bar^2)
+        # store those nc people
+        v_mix_id <- c(v_mix_id, infect_interact_rand)
+        # store their corresponding interaction probs with infecteds
+        v_probs <- c(v_probs, mix_probs)
+      }
+      # for each of those nc people, get their corresponding probs
+      for (id in unique(v_mix_id)) {
+        id_mix_prob <- v_probs[v_mix_id == id]
+        # calculate prob of infection from at least one of their infected contacts
         prob_not_infected <- 1
-        for (prob in which_mix_probs) {
-          prob_not_infected <- prob_not_infected*(1 - alpha[3]*prob)
+        for (prob in id_mix_prob) {
+          prob_not_infected <- prob_not_infected*(1-alpha[3]*prob)
         }
-        
         prob_infected <- 1 - prob_not_infected
         
-        # who got infected
-        exposed <- x[which_mix_partners] == 0 & u[which_mix_partners] < prob_infected
-        mix_exposed <- c(mix_exposed, which_mix_partners[exposed])
-        
+        exposed <- x[id] == 0 & u[id] < prob_infected
+        mix_exposed <- c(mix_exposed, id[exposed])
       }
-      
+    
     }
     
     
@@ -589,7 +586,6 @@ nseir <- function(beta, h, alink,
   }
   return(list(t = t, S = S, E = E, I = I, R = R))
 }
-
 
 
 
