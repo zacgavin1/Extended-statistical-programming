@@ -551,11 +551,7 @@ nseir <- function(beta, h, alink,
       for (id in unique(v_mix_id)) {
         id_mix_prob <- v_probs[v_mix_id == id]
         # calculate prob of infection from at least one of their infected contacts
-        prob_not_infected <- 1
-        for (prob in id_mix_prob) {
-          prob_not_infected <- prob_not_infected*(1-alpha[3]*prob)
-        }
-        prob_infected <- 1 - prob_not_infected
+        prob_infected <- 1 - prod(1-alpha[3]*id_mix_prob)
         
         exposed <- x[id] == 0 & u[id] < prob_infected
         mix_exposed <- c(mix_exposed, id[exposed])
