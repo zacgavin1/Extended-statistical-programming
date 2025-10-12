@@ -221,8 +221,127 @@ nseir <- function(beta, h, alink,
 }
 
 
+
+#### higher weights for multiple infections in hh, network, random mix ######
+nseir <- function(beta, h, alink, 
+                  alpha=c(0.1, 0.01, 0.01), 
+                  delta=.2, 
+                  gamma=.4, 
+                  nc=15, nt=100, pinf=.005) {
+  
+  n <- length(beta)
+  x <- rep(0,n)  
+  num_to_infect <- max(1, round(pinf*n))
+  x[sample(1:n, num_to_infect)] <- 2 
+  
+  hh_index_list <- split(1:n, h) 
+  hh_infect <- vector(mode = "list", length = n)
+  for (i in 1:n) {
+    hh_infect[[i]] <- setdiff(hh_index_list[[h[i]]], i)
+  }
+  
+  b_bar <- sum(beta)/n
+  mix_prob <-  nc*(beta %o% beta)/(b_bar^2 *(n-1)) 
+  
+  v_prob <- mix_prob[upper.tri(mix_prob)] 
+  
+  ij <- which(upper.tri(matrix(1, n, n)), arr.ind = TRUE)
+  
+  t <- S <- E <- I <- R <- rep(0, nt)
+  t[1] <- 1
+  S[1] <- n - num_to_infect
+  I[1] <- num_to_infect
+  
+  for(i in 2:nt) {
+    
+    u <- runif(n) 
+    v_mix <- rbinom(length(v_prob), 1, v_prob) 
+    
+    infected_indices <- which(x == 2)
+    
+    if (length(infected_indices) > 0) {
+    
+      # how many people are infected within each household
+      hh_exposed <- c()
+      hh_infected_counts <- tabulate(h[infected_indices], nbins = max(h))
+      # who got infected (household)
+      for (hh in which(hh_infected_counts > 0)) {
+        hh_members <- hh_infect[[hh]]
+        sus <- hh_members[x[hh_members] == 0]
+        if (length(sus) == 0) next
+        prob_hh_infected <- 1 - (1-alpha[1])^hh_infected_counts[hh]
+        hh_exposed_indices <- sus[u[sus] < prob_hh_infected]
+        hh_exposed <- c(hh_exposed, hh_exposed_indices) 
+      }
+      
+      # how many people are infected within each network
+      net_exposed <- c()
+      net_infected_counts <- mapply(function(lst, index) {
+                                      ifelse(index %in% infected_indices, 
+                                             sum(!(lst %in% which(x == 0))) + 1, 0)
+                                    }, 
+                                    alink2, seq_along(alink2))
+      # who got infected (network)
+      for (net in which(net_infected_counts > 0)) {
+        net_members <- alink[[net]]
+        sus <- net_members[x[net_members] == 0]
+        if (length(sus) == 0) next
+        prob_net_infected <- 1 - (1-alpha[2])^net_infected_counts[net]
+        net_exposed_indices <- sus[u[sus] < prob_net_infected]
+        net_exposed <- c(net_exposed, net_exposed_indices)
+      }
+      
+      # set-up of random mixing interactions with infected people
+      mix_pairs <- ij[v_mix == 1, , drop = FALSE]
+      mix_infected <- c(
+        mix_pairs[mix_pairs[ , 1] %in% infected_indices, 2],
+        mix_pairs[mix_pairs[ , 2] %in% infected_indices, 1]
+      )
+      
+      # how many infected people did each person randomly interact with
+      mix_exposed <- c()
+      mix_infected_counts <- tabulate(mix_infected, nbins = n)
+      # who got infected (mixing)
+      for (mix in which(mix_infected_counts > 0)) {
+        sus <- mix[x[mix] == 0]
+        if (length(sus) == 0) next
+        # need to think about this; might not be exactly what the probability is
+        prob_mix_infected <- 1 - (1-alpha[3])^mix_infected_counts[mix]
+        mix_exposed_indices <- sus[u[sus] < prob_mix_infected]
+        mix_exposed <- c(mix_exposed, mix_exposed_indices)
+      }
+    }
+    
+    x[x == 2 & u < delta] <- 3
+    x[x == 1 & u < gamma] <- 2
+    
+    newly_exposed <- integer(0)
+    
+    if (length(infected_indices) > 0) {
+      
+      newly_exposed <- unique(c(hh_exposed, net_exposed, mix_exposed))
+      
+    }
+    
+    x[newly_exposed] <- 1
+    
+    S[i] <- sum(x == 0)
+    E[i] <- sum(x == 1)
+    I[i] <- sum(x == 2)
+    R[i] <- sum(x == 3)
+    t[i] <- i
+    
+  }
+  return(list(t = t, S = S, E = E, I = I, R = R))
+}
+
+
+
+
+
+
 # default parameters
-epi <- nseir(beta, h, alink)
+epi <- nseir(beta, h, alink2)
 
 # adjusted parameters
 epi1 <- nseir(beta, h, alink, 
@@ -247,7 +366,7 @@ epi_plot <- function(beta, h, alink,
   epi <- nseir(beta, h, alink, alpha, delta, gamma, nc, nt, pinf)
   
   plot(x = epi$t, y = epi$S, ylim = c(0, max(epi$S)), 
-       xlab = "day", ylab = "N", main = title, las = 1)
+       xlab = "day", ylab = "N", main = title)
   points(epi$E, col = 4); points(epi$I, col = 2); points(epi$R, col = 3)
   
   legend(x = "topright", 
@@ -255,7 +374,8 @@ epi_plot <- function(beta, h, alink,
                     "Infected", "Recovered"),
          fill = c("black", "blue",
                   "red", "green"),
-         bty = "n")
+         bty = "n",
+         cex = 0.5)
   
 }
 
@@ -263,8 +383,8 @@ par(mfrow = c(1,1))
 plot_original_dynamics(epi, title = "Epidemic with Default Parameters")
 plot_original_dynamics(epi1, title = "Epidemic with Adjusted Parameters")
 
-epi_plot(beta, h, alink, title = "Epidemic with Default Parameters")
-epi_plot(beta, h, alink,
+epi_plot(beta, h, alink2, title = "Epidemic with Default Parameters")
+epi_plot(beta, h, alink2,
          alpha = c(0.5, 0.3, 0.1), gamma = 0.5, delta = 0.1,
          title = "Epidemic with Adjusted Parameters")
 
@@ -275,22 +395,21 @@ par(mfrow = c(2, 2), mar = c(4, 4, 2, 1)) #2x2 grid, mar allows good spacing
 adjacencyList_variable_beta <- get.net2(beta, h)
 
 #scenario 1: full model with default parameters
-epi_full <- nseir(beta, h, adjacencyList_variable_beta)
-plot_original_dynamics(epi_full, title = "1. Full Model")
+epi_plot(beta, h, adjacencyList_variable_beta, title = "1. Full Model")
 
 
 #scenario 2: random mixing only
-epi_random <- nseir(beta, h, adjacencyList_variable_beta, alpha = c(0, 0, 0.04))
-plot_original_dynamics(epi_random, title = "2. Random Mixing Only")
+epi_plot(beta, h, adjacencyList_variable_beta, alpha = c(0, 0, 0.04),
+         title = "2. Random Mixing Only")
 
 #scenario 3: full model with constant beta value
 beta_const <- rep(mean(beta), n)
 adjacencyList_constant_beta <- get.net2(beta_const, h)
-epi_const_beta <- nseir(beta_const, h, adjacencyList_constant_beta)
-plot_original_dynamics(epi_const_beta, title = "3. Full Model + Constant Beta Value")
+epi_plot(beta_const, h, adjacencyList_constant_beta, 
+         title = "3. Full Model + Constant Beta Value")
 
 #scenario 4: random mixing with constant beta
-epi_random_const_beta <- nseir(beta_const, h, adjacencyList_constant_beta, alpha = c(0, 0, 0.04))
-plot_original_dynamics(epi_random_const_beta, title = "4. Random Mixing + Constant Beta Value")
+epi_plot(beta_const, h, adjacencyList_constant_beta, alpha = c(0, 0, 0.04),
+         title = "4. Random Mixing + Constant Beta Value")
 
 par(mfrow = c(1, 1))
