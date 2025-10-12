@@ -9,7 +9,7 @@
 # base population, assigning each of the 'n' individuals to a household.
 
 
-n <- 1000
+n <- 10000
 people <- 1:n
 h_max <- 5
 
@@ -335,6 +335,134 @@ nseir <- function(beta, h, alink,
   return(list(t = t, S = S, E = E, I = I, R = R))
 }
 
+
+
+###### optimized v2.0 ##########
+nseir <- function(beta, h, alink, 
+                  alpha=c(0.1, 0.01, 0.01), 
+                  delta=.2, 
+                  gamma=.4, 
+                  nc=15, nt=100, pinf=.005) {
+  
+  n <- length(beta)
+  x <- rep(0,n)  
+  num_to_infect <- max(1, round(pinf*n))
+  x[sample(1:n, num_to_infect)] <- 2 
+  
+  hh_index_list <- split(1:n, h) 
+  hh_infect <- vector(mode = "list", length = n)
+  for (i in 1:n) {
+    hh_infect[[i]] <- setdiff(hh_index_list[[h[i]]], i)
+  }
+  
+  b_bar <- sum(beta)/n
+  mix_prob <-  nc*(beta %o% beta)/(b_bar^2 *(n-1)) 
+  
+  v_prob <- mix_prob[upper.tri(mix_prob)]
+  
+  # remove to save memory
+  rm(mix_prob)
+  
+  ij <- which(upper.tri(matrix(1, n, n)), arr.ind = TRUE)
+  
+  t <- S <- E <- I <- R <- rep(0, nt)
+  t[1] <- 1
+  S[1] <- n - num_to_infect
+  I[1] <- num_to_infect
+  
+  for(i in 2:nt) {
+    
+    u <- runif(n) 
+    v_mix <- runif(length(v_prob)) < v_prob # maybe faster?
+    
+    infected_indices <- which(x == 2)
+    
+    if (length(infected_indices) > 0) {
+      
+      #maybe faster?
+      # how many people are infected within each household
+      hh_infected_counts <- tabulate(h[infected_indices], nbins = max(h))
+      # who got infected (household)
+      infected_hh <- which(hh_infected_counts > 0)
+      hh_probs <- 1 - (1-alpha[1])^hh_infected_counts[infected_hh]
+      hh_exposed <- unlist(
+        Map(function(hh, prob) {
+          hh_members <- hh_infect[[hh]]
+          sus <- hh_members[x[hh_members] == 0]
+          sus[u[sus] < prob]
+        }, hh = infected_hh, prob = hh_probs)
+      )
+      
+      
+      # maybe faster?
+      # how many people are infected within each network
+      net_infected_counts <- mapply(function(lst, index) {
+        ifelse(index %in% infected_indices, 
+               sum(!(lst %in% which(x == 0))) + 1, 0)
+      }, alink, seq_along(alink))
+      # who got infected (network)
+      infected_net <- which(net_infected_counts > 0)
+      net_probs <- 1 - (1-alpha[2])^net_infected_counts[infected_net]
+      net_exposed <- unlist(
+        Map(function(net, prob) {
+          net_members <- alink[[net]]
+          sus <- net_members[x[net_members] == 0]
+          sus[u[sus] < prob]
+        }, net = infected_net, prob = net_probs)
+      )
+      
+      
+      # maybe faster?
+      # set-up of random mixing interactions with infected people
+      mix_pairs <- ij[v_mix, , drop = FALSE]
+      
+      is_infected <- logical(n)
+      is_infected[infected_indices] <- TRUE
+      
+      mix_infected <- c(
+        mix_pairs[is_infected[mix_pairs[, 1]], 2],
+        mix_pairs[is_infected[mix_pairs[, 2]], 1]
+      )
+      
+      
+      # maybe faster?
+      # how many infected people did each person randomly interact with
+      mix_infected_counts <- tabulate(mix_infected, nbins = n)
+      # who got infected (mixing)
+      infected_mix <- which(mix_infected_counts > 0)
+      # need to think about this; might not be exactly what the probability is
+      mix_probs <- 1 - (1-alpha[3])^mix_infected_counts[infected_mix]
+      mix_exposed <- unlist(
+        Map(function(mix, prob) {
+          sus <- mix[x[mix] == 0]
+          sus[u[sus] < prob]
+        }, mix = infected_mix, prob = mix_probs)
+      )
+    }
+    
+    
+    x[x == 2 & u < delta] <- 3
+    x[x == 1 & u < gamma] <- 2
+    
+    newly_exposed <- integer(0)
+    
+    if (length(infected_indices) > 0) {
+      
+      newly_exposed <- unique(c(hh_exposed, net_exposed, mix_exposed))
+      
+    }
+    
+    x[newly_exposed] <- 1
+    
+    S[i] <- sum(x == 0)
+    E[i] <- sum(x == 1)
+    I[i] <- sum(x == 2)
+    R[i] <- sum(x == 3)
+    t[i] <- i
+    
+  }
+  return(list(t = t, S = S, E = E, I = I, R = R))
+}
 
 
 
