@@ -467,6 +467,132 @@ nseir <- function(beta, h, alink,
 
 
 
+######## EVEN FASTER ##############
+nseir <- function(beta, h, alink, 
+                  alpha=c(0.1, 0.01, 0.01), 
+                  delta=.2, 
+                  gamma=.4, 
+                  nc=15, nt=100, pinf=.005) {
+  
+  n <- length(beta)
+  x <- rep(0,n)  
+  num_to_infect <- max(1, round(pinf*n))
+  x[sample(1:n, num_to_infect)] <- 2 
+  
+  hh_index_list <- split(1:n, h) 
+  hh_infect <- vector(mode = "list", length = n)
+  for (i in 1:n) {
+    hh_infect[[i]] <- setdiff(hh_index_list[[h[i]]], i)
+  }
+  
+  b_bar <- sum(beta)/n
+  
+  t <- S <- E <- I <- R <- rep(0, nt)
+  t[1] <- 1
+  S[1] <- n - num_to_infect
+  I[1] <- num_to_infect
+  
+  for(i in 2:nt) {
+    
+    u <- runif(n) 
+    
+    infected_indices <- which(x == 2)
+    n_infected <- length(infected_indices)
+    
+    if (n_infected > 0) {
+      
+      #maybe faster?
+      # how many people are infected within each household
+      hh_infected_counts <- tabulate(h[infected_indices], nbins = max(h))
+      # who got infected (household)
+      infected_hh <- which(hh_infected_counts > 0)
+      hh_probs <- 1 - (1-alpha[1])^hh_infected_counts[infected_hh]
+      hh_exposed <- unlist(
+        Map(function(hh, prob) {
+          hh_members <- hh_infect[[hh]]
+          sus <- hh_members[x[hh_members] == 0]
+          sus[u[sus] < prob]
+        }, hh = infected_hh, prob = hh_probs)
+      )
+      
+      
+      # maybe faster?
+      # how many people are infected within each network
+      net_infected_counts <- mapply(function(lst, index) {
+        ifelse(index %in% infected_indices, 
+               sum(!(lst %in% which(x == 0))) + 1, 0)
+      }, alink, seq_along(alink))
+      # who got infected (network)
+      infected_net <- which(net_infected_counts > 0)
+      net_probs <- 1 - (1-alpha[2])^net_infected_counts[infected_net]
+      net_exposed <- unlist(
+        Map(function(net, prob) {
+          net_members <- alink[[net]]
+          sus <- net_members[x[net_members] == 0]
+          sus[u[sus] < prob]
+        }, net = infected_net, prob = net_probs)
+      )
+      
+      # maybe faster? also more correct probabilities
+      # who got infected (mixing)
+      mix_exposed <- c()
+      for (k in 1:n_infected) {
+        
+        # potential contacts of those infected
+        infected <- infected_indices[k]
+        partners <- (1:n)[-infected]
+        
+        # people who interacted with those infected
+        mix_probs <- nc*beta[infected]*beta[partners]/(b_bar^2*(n-1))
+        which_mix <- which(runif(length(partners)) < mix_probs)
+        which_mix_partners <- partners[which_mix]
+        which_mix_probs <- mix_probs[which_mix]
+        
+        if (length(which_mix_probs) == 0) next
+        
+        # probability of getting infected by at least one infected contact
+        prob_not_infected <- 1
+        for (prob in which_mix_probs) {
+          prob_not_infected <- prob_not_infected*(1 - alpha[3]*prob)
+        }
+        
+        prob_infected <- 1 - prob_not_infected
+        
+        # who got infected
+        exposed <- x[which_mix_partners] == 0 & u[which_mix_partners] < prob_infected
+        mix_exposed <- c(mix_exposed, which_mix_partners[exposed])
+        
+      }
+      
+    }
+    
+    
+    x[x == 2 & u < delta] <- 3
+    x[x == 1 & u < gamma] <- 2
+    
+    newly_exposed <- integer(0)
+    
+    if (length(infected_indices) > 0) {
+      
+      newly_exposed <- unique(c(hh_exposed, net_exposed, mix_exposed))
+      
+    }
+    
+    x[newly_exposed] <- 1
+    
+    S[i] <- sum(x == 0)
+    E[i] <- sum(x == 1)
+    I[i] <- sum(x == 2)
+    R[i] <- sum(x == 3)
+    t[i] <- i
+    
+  }
+  return(list(t = t, S = S, E = E, I = I, R = R))
+}
+
+
+
+
 
 # default parameters
 epi <- nseir(beta, h, alink2)
