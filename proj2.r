@@ -193,7 +193,7 @@ epi_plot <- function(beta, h, alink,
          col = c("black", "blue",
                   "red", "green"),
          pch = 16,
-         inset = 0.02,
+         inset = 0.005,
          bty = "n",
          cex = 0.9)
 }
