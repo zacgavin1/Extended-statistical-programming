@@ -9,7 +9,7 @@
 # base population, assigning each of the 'n' individuals to a household.
 
 
-n <- 10000
+n <- 1000
 people <- 1:n
 h_max <- 5
 
@@ -612,16 +612,18 @@ epi_plot <- function(beta, h, alink,
   epi <- nseir(beta, h, alink, alpha, delta, gamma, nc, nt, pinf)
   
   plot(x = epi$t, y = epi$S, ylim = c(0, max(epi$S)), 
-       xlab = "day", ylab = "N", main = title)
+       xlab = "day", ylab = "N", main = title, las = 1)
   points(epi$E, col = 4); points(epi$I, col = 2); points(epi$R, col = 3)
   
-  legend(x = "topright", 
+  legend(x = "right", 
          legend = c("Susceptible", "Exposed",
                     "Infected", "Recovered"),
-         fill = c("black", "blue",
+         col = c("black", "blue",
                   "red", "green"),
+         pch = 16,
+         inset = 0.02,
          bty = "n",
-         cex = 0.5)
+         cex = 0.9)
   
 }
 
