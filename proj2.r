@@ -157,27 +157,7 @@ nseir <- function(beta, h, alink,
         }
       }
       
-<<<<<<< HEAD
-      if (n > 1) {
-        total_contacts <- n_infected * nc
-        contacts <- sample(n, total_contacts, replace = TRUE)
-        infected_repeats <- rep(infected_indices, each = nc)
-        
-        log_prob_no_infection <- log1p(-alpha[3] * beta[infected_repeats] * beta[contacts] / (b_bar^2))
-        
-        sum_log_probs <- tapply(log_prob_no_infection, contacts, sum)
-        ids_contacted <- as.integer(names(sum_log_probs))
-        prob_infection <- 1 - exp(sum_log_probs)
-        
-        
-        
-        sus_contacted <- ids_contacted[x[ids_contacted] == 0]
-        if(length(sus_contacted) > 0){
-          u_mix <- runif(length(sus_contacted),0,1) # new unifs to avoid dep. of mixing infection and net/hh infection
-          prob_idx <- match(sus_contacted, ids_contacted)
-          mix_exposed <- sus_contacted[u_mix < prob_infection[prob_idx]]
-        }
-=======
+
       ## -- find who gets infected from random mixing -- ##
       # total number of contacts between all infected people
       total_contacts <- n_infected * nc
@@ -198,9 +178,10 @@ nseir <- function(beta, h, alink,
       sus_contacted <- ids_contacted[x[ids_contacted] == 0]
       # who transitions to infected from mixing
       if(length(sus_contacted) > 0){
+        u_mix <- runif(length(sus_contacted)) # new unifs to ensure indep. from net/hh processes 
         prob_idx <- match(sus_contacted, ids_contacted)
-        mix_exposed <- sus_contacted[u[sus_contacted] < prob_infection[prob_idx]]
->>>>>>> a98c33b6ed19042094fc23103d9ab16f88e8ca06
+        mix_exposed <- sus_contacted[u_mix < prob_infection[prob_idx]]
+
       }
     }
     
