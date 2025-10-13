@@ -1,4 +1,5 @@
 ## GENERAL DESCRIPTION
+# 
 
 
 ################################################################################
@@ -184,7 +185,11 @@ epi_plot <- function(beta, h, alink,
   epi <- nseir(beta, h, alink, alpha, delta, gamma, nc, nt, pinf)
   
   plot(x = epi$t, y = epi$S, ylim = c(0, max(epi$S)), 
-       xlab = "day", ylab = "N", main = title, las = 1)
+       xlab = "", ylab = "", main = title, las = 1)
+  
+  title(xlab = "Day", mgp = c(2.2, 0.7, 0)) #Spacing for x axis and title
+  title(ylab = "N", mgp = c(2.5, 0.7, 0)) #Spacing for y axis and title
+  
   points(epi$E, col = 4); points(epi$I, col = 2); points(epi$R, col = 3)
 
   legend(x = "right", 
