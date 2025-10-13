@@ -120,9 +120,9 @@ nseir <- function(beta, h, alink,
       if (length(infected_hh) > 0) {
         hh_probs <- 1 - (1-alpha[1])^hh_infected_counts[infected_hh]
         hh_exposed <- unlist(
-          Map(function(hh, prob) {
+          Map(function(hh, prob) { # this defines a function and then applys it to each pair
             hh_members <- hh_index_list[[as.character(hh)]]
-            sus <- hh_members[x[hh_members] == 0]
+            sus <- hh_members[x[hh_members] == 0] 
             sus[u[sus] < prob]
           }, hh = infected_hh, prob = hh_probs), use.names = FALSE
         )
@@ -146,14 +146,16 @@ nseir <- function(beta, h, alink,
         log_prob_no_infection <- log1p(-alpha[3] * beta[infected_repeats] * beta[contacts] / (b_bar^2))
         
         sum_log_probs <- tapply(log_prob_no_infection, contacts, sum)
-        
         ids_contacted <- as.integer(names(sum_log_probs))
         prob_infection <- 1 - exp(sum_log_probs)
         
+        
+        
         sus_contacted <- ids_contacted[x[ids_contacted] == 0]
         if(length(sus_contacted) > 0){
+          u_mix <- runif(length(sus_contacted),0,1) # new unifs to avoid dep. of mixing infection and net/hh infection
           prob_idx <- match(sus_contacted, ids_contacted)
-          mix_exposed <- sus_contacted[u[sus_contacted] < prob_infection[prob_idx]]
+          mix_exposed <- sus_contacted[u_mix < prob_infection[prob_idx]]
         }
       }
     }
@@ -215,7 +217,7 @@ epi_plot <- function(beta, h, alink,
 
 par(mfrow = c(2, 2), mar = c(4, 4, 2.5, 1), mgp = c(2.2, 0.7, 0)) #2x2 grid, mar allows good spacing, mgp moves axis
 
-adjacencyList_variable_beta <- get.net2(beta, h)
+adjacencyList_variable_beta <- get.net(beta, h)
 
 #scenario 1: full model with default parameters
 epi_plot(beta, h, adjacencyList_variable_beta, title = "1. Full Model")
@@ -227,7 +229,7 @@ epi_plot(beta, h, adjacencyList_variable_beta, alpha = c(0, 0, 0.04),
 
 #scenario 3: full model with constant beta value
 beta_const <- rep(mean(beta), n)
-adjacencyList_constant_beta <- get.net2(beta_const, h)
+adjacencyList_constant_beta <- get.net(beta_const, h)
 epi_plot(beta_const, h, adjacencyList_constant_beta, 
          title = "3. Full Model + Constant Beta Value")
 
