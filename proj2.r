@@ -176,7 +176,7 @@ nseir <- function(beta, h, alink,
       # subset to those that are susceptible
       sus_contacted <- ids_contacted[x[ids_contacted] == 0]
       # who transitions to infected from mixing
-      if(length(sus_contacted) > 0){
+      if(length(sus_contacted) > 0) {
         prob_idx <- match(sus_contacted, ids_contacted)
         mix_exposed <- sus_contacted[u[sus_contacted] < prob_infection[prob_idx]]
       }
