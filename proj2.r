@@ -201,7 +201,7 @@ epi_plot <- function(beta, h, alink,
 
 ##q5
 
-par(mfrow = c(2, 2), mar = c(4, 4, 2, 1)) #2x2 grid, mar allows good spacing
+par(mfrow = c(2, 2), mar = c(4, 4, 2.5, 1), mgp = c(2.2, 0.7, 0)) #2x2 grid, mar allows good spacing, mgp moves axis
 
 adjacencyList_variable_beta <- get.net2(beta, h)
 
