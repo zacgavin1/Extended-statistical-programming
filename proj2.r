@@ -91,34 +91,47 @@ nseir <- function(beta, h, alink,
                   nc=15, nt=100, pinf=.005) {
   
   n <- length(beta)
-  x <- rep(0,n)  
+  x <- rep(0,n) # everyone starts off susceptible 
   num_to_infect <- max(1, round(pinf*n))
-  x[sample(1:n, num_to_infect)] <- 2 
+  x[sample(1:n, num_to_infect)] <- 2 # pick a few people to start off infected
   
+  # set up households (who's in each household)
   hh_index_list <- split(1:n, h) 
   
+  # for future calculation of mixing probs
   b_bar <- sum(beta)/n
   
+  # initialize counts of statuses
   t <- S <- E <- I <- R <- rep(0, nt)
   t[1] <- 1
   S[1] <- n - num_to_infect
   I[1] <- num_to_infect
   
+  # daily simulation
   for(i in 2:nt) {
     
+    # random numbers to compare with probabilities
     u <- runif(n) 
     
+    # store who is infected
     infected_indices <- which(x == 2)
     n_infected <- length(infected_indices)
     
+    # initialize lists of those exposed through infected people 
     hh_exposed <- net_exposed <- mix_exposed <- integer(0)
     
+    # find who transitions from susceptible to exposed
     if (n_infected > 0) {
       
+      ## -- find who gets infected from household contacts -- ##
+      # count how many people are infected in each household
       hh_infected_counts <- tabulate(h[infected_indices], nbins = max(h))
+      # which households have someone infected in them
       infected_hh <- which(hh_infected_counts > 0)
+      # prob of infection is higher for households with multiple people infected
       if (length(infected_hh) > 0) {
         hh_probs <- 1 - (1-alpha[1])^hh_infected_counts[infected_hh]
+        # who transitions to infected in the household
         hh_exposed <- unlist(
           Map(function(hh, prob) {
             hh_members <- hh_index_list[[as.character(hh)]]
@@ -128,44 +141,59 @@ nseir <- function(beta, h, alink,
         )
       }
       
+      ## -- find who gets infected from regular network contacts -- ##
+      # who is in a regular network with someone infected
       neighbors_of_infected <- unlist(alink[infected_indices], use.names = FALSE)
       if(length(neighbors_of_infected) > 0) {
+        # count how many people are infected in each regular network 
         net_infected_counts <- tabulate(neighbors_of_infected, nbins = n)
+        # which networks have someone infected in them
         sus_exposed_to_net <- which(net_infected_counts > 0 & x == 0)
+        # prob of infection is higher for networks with multiple people infected
         if (length(sus_exposed_to_net) > 0) {
           net_probs <- 1 - (1-alpha[2])^net_infected_counts[sus_exposed_to_net]
+          # who transitions to infected in network
           net_exposed <- sus_exposed_to_net[u[sus_exposed_to_net] < net_probs]
         }
       }
       
-      if (n > 1) {
-        total_contacts <- n_infected * nc
-        contacts <- sample(n, total_contacts, replace = TRUE)
-        infected_repeats <- rep(infected_indices, each = nc)
-        
-        log_prob_no_infection <- log1p(-alpha[3] * beta[infected_repeats] * beta[contacts] / (b_bar^2))
-        
-        sum_log_probs <- tapply(log_prob_no_infection, contacts, sum)
-        
-        ids_contacted <- as.integer(names(sum_log_probs))
-        prob_infection <- 1 - exp(sum_log_probs)
-        
-        sus_contacted <- ids_contacted[x[ids_contacted] == 0]
-        if(length(sus_contacted) > 0){
-          prob_idx <- match(sus_contacted, ids_contacted)
-          mix_exposed <- sus_contacted[u[sus_contacted] < prob_infection[prob_idx]]
-        }
+      ## -- find who gets infected from random mixing -- ##
+      # total number of contacts between all infected people
+      total_contacts <- n_infected * nc
+      # randomly select who those contacts are
+      contacts <- sample(n, total_contacts, replace = TRUE)
+      # set up for calculating mixing probs for infected people with corresponding contacts
+      infected_repeats <- rep(infected_indices, each = nc)
+      
+      # exp^(sum(log(x_i))) faster than product(x_i)
+      # prob of infection is higher for those that mixed with multiple infected people
+      log_prob_no_infection <- log1p(-alpha[3] * beta[infected_repeats] * beta[contacts] / (b_bar^2))
+      sum_log_probs <- tapply(log_prob_no_infection, contacts, sum)
+      prob_infection <- 1 - exp(sum_log_probs)
+      
+      # store who came into contact with those infected
+      ids_contacted <- as.integer(names(sum_log_probs))
+      # subset to those that are susceptible
+      sus_contacted <- ids_contacted[x[ids_contacted] == 0]
+      # who transitions to infected from mixing
+      if(length(sus_contacted) > 0){
+        prob_idx <- match(sus_contacted, ids_contacted)
+        mix_exposed <- sus_contacted[u[sus_contacted] < prob_infection[prob_idx]]
       }
     }
     
+    # transition from infected to recover with probability = delta
     x[x == 2 & u < delta] <- 3
+    # transition from exposed to infected with probability = gamma
     x[x == 1 & u < gamma] <- 2
     
+    # gather everyone who transitions from susceptible to exposed
     if (length(hh_exposed) > 0 || length(net_exposed) > 0 || length(mix_exposed) > 0) {
       newly_exposed <- unique(c(hh_exposed, net_exposed, mix_exposed))
       x[newly_exposed] <- 1
     }
     
+    # get daily counts of statuses and store it in a list
     S[i] <- sum(x == 0)
     E[i] <- sum(x == 1)
     I[i] <- sum(x == 2)
