@@ -9,7 +9,7 @@
 # base population, assigning each of the 'n' individuals to a household.
 
 
-n <- 1000
+n <- 10000
 people <- 1:n
 h_max <- 5
 
@@ -210,7 +210,7 @@ epi_plot <- function(beta, h, alink,
 
 par(mfrow = c(2, 2), mar = c(4, 4, 2, 1)) #2x2 grid, mar allows good spacing
 
-adjacencyList_variable_beta <- get.net2(beta, h)
+adjacencyList_variable_beta <- get.net(beta, h)
 
 #scenario 1: full model with default parameters
 epi_plot(beta, h, adjacencyList_variable_beta, title = "1. Full Model")
@@ -222,7 +222,7 @@ epi_plot(beta, h, adjacencyList_variable_beta, alpha = c(0, 0, 0.04),
 
 #scenario 3: full model with constant beta value
 beta_const <- rep(mean(beta), n)
-adjacencyList_constant_beta <- get.net2(beta_const, h)
+adjacencyList_constant_beta <- get.net(beta_const, h)
 epi_plot(beta_const, h, adjacencyList_constant_beta, 
          title = "3. Full Model + Constant Beta Value")
 
