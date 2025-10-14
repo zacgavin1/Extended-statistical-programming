@@ -99,6 +99,15 @@ get.net <- function(beta, h, nc=15) {
 # This function is the core of the model. It simulates the epidemic over 
 # nt time steps, tracking the number of individuals in each SEIR compartment.
 
+# beta is sociability vector. h contains a list of what household each person 
+# is in. alink is a nested list of the net connections of each person. 
+# alpha contains parameters governing the prob. of exposure from each pathway. 
+# alpha[1] concerns hh infection, alpha[2] network infections, alpha[3] gen. mixing. 
+# delta is daily prob of I->R. gamma is daily prob of E->R. 
+# nc is a measure of how much "social interaction" happens in the population
+# nt is number of days the simulation runs over, and pinf is prop of population
+# initially infected
+
 nseir <- function(beta, h, alink, 
                   alpha=c(0.1, 0.01, 0.01), 
                   delta=.2, 
