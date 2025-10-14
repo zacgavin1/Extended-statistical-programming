@@ -301,8 +301,15 @@ par(mfrow = c(1, 1))
 ############# ------- DISCUSSION OF PLOTS -------- ###############
 ##################################################################
 
-
-
+# When we remove household and network effects, while holding constant the
+# total no. of daily contacts, we see the epidemic proceeding noticeably
+# faster. This occurs both in the case of non-constant and constant beta.
+# In the full model, although the total number of contacts in a day
+# is the same as the mixing only model, these contacts will be
+# concentrated locally. This introduces the possibility, for instance,
+# for household groups to all get infected, at which point there can 
+# be no disease spread in this pathway. These types of effects will
+# combine to slow the spread when compared to the mixing only model. 
 
 
 
