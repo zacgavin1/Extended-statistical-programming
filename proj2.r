@@ -248,6 +248,8 @@ epi_plot <- function(beta, h, alink,
   plot(x = epi$t, y = epi$S, ylim = c(0, max(epi$S)), 
        xlab = "", ylab = "", main = title, las = 1)
   
+  grid(nx = NA, ny = NULL, lty = 1, col = "gray", lwd = 1)
+  
   title(xlab = "Day", mgp = c(2.2, 0.7, 0)) #Spacing for x axis and title
   title(ylab = "N", mgp = c(2.5, 0.7, 0)) #Spacing for y axis and title
   
@@ -292,3 +294,18 @@ epi_plot(beta_const, h, adjacencyList_constant_beta, alpha = c(0, 0, 0.04),
          title = "4. Random Mixing + Constant Beta Value")
 
 par(mfrow = c(1, 1))
+
+
+
+##################################################################
+############# ------- DISCUSSION OF PLOTS -------- ###############
+##################################################################
+
+
+
+
+
+
+
+
+
