@@ -30,44 +30,59 @@
 n <- 10000
 people <- 1:n
 h_max <- 5
+beta <- runif(n,0,1)
 
 set.seed(13)
 
-#### Putting people in households
+#######################################################################
+######### ---------- HOUSEHOLD GENERATION FUNCTION ---------- ##########
+#######################################################################
+
+# generate n hh sizes uniform on {1,2,3,4,5}, make a vector repeating
+# the "household number" the size of the hh times, then cut off at length n.
+
 h <- rep(1:n, sample(1:h_max, n, replace = TRUE))[1:n] 
 
-links <- cbind(person=people, household=h)
 
-beta <- runif(n,0,1)
 
 ######################################################################
-######### ------- NETWORK GENERATION FUNCTIONS ------- ###############
+######### ------- NETWORK GENERATION FUNCTION ------- ################
 ######################################################################
 
-# These functions create the social network connections between individuals
+# This function creates the social network connections between individuals
 # who are not in the same household.
 
+# beta is the length n vector of sociability parameters, h contains household 
+# connections, nc is the average number of network connections someone has.
+# get.net initially generates a vector of Bernoullis for each person i, containing
+# their connections with people (i+1):n. For each person, this is immediately 
+# turned into a list of indices, to save computation time, then into a list
+# of connection pairs for inversion and removing hh connections.
 
 get.net <- function(beta, h, nc=15) {
   n <- length(h)
   b_bar <- sum(beta)/length(beta) 
-  conns_init <- vector("list", n)
+  conns_init <- vector("list", n) # initialising two lists to store connections
   conns <- vector(mode="list", length=n)
   for (i in 1:n) {
-    if (i < n) {
+    if (i < n) { 
       b <- rbinom(n-i, 1, nc*beta[i]*beta[(i+1):n]/(b_bar^2*(n-1)) )
-      conns_init[[i]] <- which(b==1) + i 
+      # which(b==1) returns values in 1:n-i, so +i to get indices in (i+1):n
+      conns_init[[i]] <- which(b==1) + i  
     }
   }
   
-  # <-- FIX IS HERE: Changed lapply to sapply
+  # vectorised rep, sapply returns vector. pairs is all unique net connections
   pairs <- cbind(rep(1:n, sapply(conns_init, length)), unlist(conns_init)) 
   
-  if (nrow(pairs) > 0) {
+  if (nrow(pairs) > 0) { 
+    # keep only rows of pairs where members are not in the same household
     pairs <- pairs[h[pairs[,1]] != h[pairs[,2]], , drop = FALSE] 
+    
     
     if(nrow(pairs) > 0) {
       for (i in 1:nrow(pairs)){
+        # add person 1 in pair to connections list of person 2, and vice-versa
         conns[[pairs[i,1]]] <- append(conns[[pairs[i,1]]],  pairs[i,2] )
         conns[[pairs[i,2]]] <- append(conns[[pairs[i,2]]],  pairs[i,1] )
       }
@@ -77,9 +92,9 @@ get.net <- function(beta, h, nc=15) {
   return(conns)
 }
 
-###########################################################
+#############################################################
 ######### ------- SEIR SIMULATION FUNCTION ------- ##########
-###########################################################
+#############################################################
 
 # This function is the core of the model. It simulates the epidemic over 
 # nt time steps, tracking the number of individuals in each SEIR compartment.
@@ -208,9 +223,9 @@ nseir <- function(beta, h, alink,
 }
 
 
-###########################################################
+#############################################################
 ######### ------- PLOTTING HELPER FUNCTION ------- ##########
-###########################################################
+#############################################################
 
 epi_plot <- function(beta, h, alink, 
                      alpha = c(0.1, 0.01, 0.01),
@@ -241,9 +256,9 @@ epi_plot <- function(beta, h, alink,
 }
 
 
-###########################################################
+#############################################################
 ######### ------- MODEL SCENARIO COMPARISON (Q5) ------- ####
-###########################################################
+#############################################################
 
 par(mfrow = c(2, 2), mar = c(4, 4, 2.5, 1), mgp = c(2.2, 0.7, 0)) #2x2 grid, mar allows good spacing, mgp moves axis
 
