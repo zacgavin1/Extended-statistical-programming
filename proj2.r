@@ -62,9 +62,10 @@ h <- rep(1:n, sample(1:h_max, n, replace = TRUE))[1:n]
 get.net <- function(beta, h, nc=15) {
   
   n <- length(h)
-  b_bar <- sum(beta)/length(beta) 
-  conns_init <- vector(mode="list", length=n) # initialising two lists to store connections
-  conns <- vector(mode="list", length=n)
+  b_bar <- sum(beta)/length(beta)
+  # initialising two lists to store connections
+  conns_init <- vector(mode = "list", length = n) 
+  conns <- vector(mode = "list", length = n)
   for (i in 1:n) {
     if (i<n){
       b <- rbinom(n-i, 1, nc*beta[i]*beta[(i+1):n]/(b_bar^2*(n-1)) )
@@ -290,8 +291,7 @@ epi_plot <- function(beta, h, alink,
   grid(nx = NULL, ny = NULL, lty = 2, col = "gray", lwd = 1)
   
   title(xlab = "Day", mgp = c(2.2, 0.7, 0)) #Spacing for x axis and title
-  #title(ylab = "N", mgp = c(2.5, 0.7, 0)) #Spacing for y axis and title
-  mtext("N", side = 2, las = 1, line = 2.8)
+  mtext("N", side = 2, line = 2.8, las = 1) #Spacing for y axis and title
   
   lines(x = epi$t, y = epi$S, lty = 1, lwd = 2)
   lines(epi$E, col = 4, lty = 1, lwd = 2) 
