@@ -283,23 +283,28 @@ epi_plot <- function(beta, h, alink,
   
   epi <- nseir(beta, h, alink, alpha, delta, gamma, nc, nt, pinf)
   
-  plot(x = epi$t, y = epi$S, ylim = c(0, max(epi$S)), 
+  plot(x = NA, y = NA, xlim = c(0, max(epi$t)), ylim = c(0, max(epi$S)), 
        xlab = "", ylab = "", main = title, las = 1)
   
-  grid(nx = NA, ny = NULL, lty = 1, col = "gray", lwd = 1)
+  grid(nx = NULL, ny = NULL, lty = 2, col = "gray", lwd = 1)
   
   title(xlab = "Day", mgp = c(2.2, 0.7, 0)) #Spacing for x axis and title
-  title(ylab = "N", mgp = c(2.5, 0.7, 0)) #Spacing for y axis and title
+  #title(ylab = "N", mgp = c(2.5, 0.7, 0)) #Spacing for y axis and title
+  mtext("N", side = 2, las = 1, line = 2.8)
   
-  points(epi$E, col = 4); points(epi$I, col = 2); points(epi$R, col = 3)
+  lines(x = epi$t, y = epi$S, lty = 1, lwd = 2)
+  lines(epi$E, col = 4, lty = 1, lwd = 2) 
+  lines(epi$I, col = 2, lty = 1, lwd = 2)
+  lines(epi$R, col = 3, lty = 1, lwd = 2)
 
   legend(x = "right", 
          legend = c("Susceptible", "Exposed",
                     "Infected", "Recovered"),
          col = c("black", "blue",
                   "red", "green"),
-         pch = 16,
-         inset = 0.005,
+         lty = 1, lwd = 2, seg.len = 0.5,
+         x.intersp = 0.5, y.intersp = 0.5,
+         inset = -0.22,
          bty = "n",
          cex = 0.9)
 }
