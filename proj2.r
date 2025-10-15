@@ -45,7 +45,7 @@ h <- rep(1:n, sample(1:h_max, n, replace = TRUE))[1:n]
 
 
 ######################################################################
-######### ------- NETWORK GENERATION FUNCTION ------- ################
+############ ------- NETWORK GENERATION FUNCTION ------- #############
 ######################################################################
 
 # This function creates the social network connections between individuals
@@ -59,6 +59,7 @@ h <- rep(1:n, sample(1:h_max, n, replace = TRUE))[1:n]
 # of connection pairs for inversion and removing hh connections.
 
 get.net <- function(beta, h, nc=15) {
+  
   n <- length(h)
   b_bar <- sum(beta)/length(beta) 
   conns_init <- vector("list", n) # initialising two lists to store connections
@@ -78,7 +79,6 @@ get.net <- function(beta, h, nc=15) {
     # keep only rows of pairs where members are not in the same household
     pairs <- pairs[h[pairs[,1]] != h[pairs[,2]], , drop = FALSE] 
     
-    
     if(nrow(pairs) > 0) {
       for (i in 1:nrow(pairs)){
         # add person 1 in pair to connections list of person 2, and vice-versa
@@ -93,7 +93,7 @@ get.net <- function(beta, h, nc=15) {
 
 
 ######################################################################
-############# ------- SEIR SIMULATION FUNCTION ------- ###############
+############## ------- SEIR SIMULATION FUNCTION ------- ##############
 ######################################################################
 
 # This function is the core of the model. It simulates the epidemic over 
@@ -145,10 +145,6 @@ nseir <- function(beta, h, alink,
     infected_indices <- which(x == 2)
     n_infected <- length(infected_indices)
     
-    # initialize lists of those exposed through infected people 
-    hh_exposed <- net_exposed <- mix_exposed <- integer(0)
-    
-    
     ## -- 2a. Infectious to Recovered -- ##
     # transition from infected to recover with probability = delta
     x[x == 2 & u < delta] <- 3
@@ -159,6 +155,10 @@ nseir <- function(beta, h, alink,
     
     ## -- 2c. Set-Up of Susceptible to Exposed -- ##
     # find who transitions from susceptible to exposed
+    # initialize lists of those exposed through infected people 
+    hh_exposed <- net_exposed <- mix_exposed <- integer(0)
+    
+    # if nobody's infected, nobody can become exposed
     if (n_infected > 0) {
       
       ## -- 2c(i). Household Exposure -- ##
@@ -221,7 +221,10 @@ nseir <- function(beta, h, alink,
       
       # prob of infection by at least one infected random contact
       # exp^(sum(log(x_i))) computationally faster than prod(x_i)
-      log_prob_no_infection <- log1p(-alpha[3] * beta[infected_repeats] * beta[contacts] / (b_bar^2))
+      # safeguard against probabilities > 1
+      # -- happens when either b's or chosen a[3] are extremely high (e.g. a[3] > 0.2)
+      probs <- pmin(alpha[3]*beta[infected_repeats]*beta[contacts]/(b_bar^2), 1)
+      log_prob_no_infection <- log1p(-probs)
       sum_log_probs <- tapply(log_prob_no_infection, contacts, sum)
       prob_infection <- 1 - exp(sum_log_probs)
       # all together, we have the desired probability
@@ -263,7 +266,7 @@ nseir <- function(beta, h, alink,
 
 
 ######################################################################
-############# ------- PLOTTING HELPER FUNCTION ------- ###############
+############## ------- PLOTTING HELPER FUNCTION ------- ##############
 ######################################################################
 
 epi_plot <- function(beta, h, alink, 
@@ -298,7 +301,7 @@ epi_plot <- function(beta, h, alink,
 
 
 ######################################################################
-############ ------- MODEL SCENARIO COMPARISON ------- ###############
+############# ------- MODEL SCENARIO COMPARISON ------- ##############
 ######################################################################
 
 par(mfrow = c(2, 2), mar = c(4, 4, 2.5, 1), mgp = c(2.2, 0.7, 0)) #2x2 grid, mar allows good spacing, mgp moves axis
@@ -326,10 +329,9 @@ epi_plot(beta_const, h, adjacencyList_constant_beta, alpha = c(0, 0, 0.04),
 par(mfrow = c(1, 1))
 
 
-
-##################################################################
-############# ------- DISCUSSION OF PLOTS -------- ###############
-##################################################################
+######################################################################
+################ ------- DISCUSSION OF PLOTS -------- ################
+######################################################################
 
 # When we remove household and network effects, while holding constant the
 # total no. of daily contacts, we see the epidemic proceeding noticeably
