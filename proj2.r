@@ -19,16 +19,10 @@
 
 
 
-<<<<<<< HEAD
 
-################################################################################
-######### ------- START OF MODEL SETUP AND POPULATION GENERATION ------- #########
-################################################################################
-=======
 ######################################################################
 ### ------- START OF MODEL SETUP AND POPULATION GENERATION ------- ###
 ######################################################################
->>>>>>> 4b8fc47df555049b9016d8529a0fb2eee5260b50
 
 # This section defines the global parameters for the model and generates the
 # base population, assigning each of the 'n' individuals to a household.
@@ -37,7 +31,7 @@
 n <- 10000
 people <- 1:n
 h_max <- 5
-beta <- runif(n,0,1)
+beta <- runif(n, 0, 1)
 
 set.seed(13)
 
@@ -75,7 +69,7 @@ get.net <- function(beta, h, nc=15) {
     if (i < n) { 
       b <- rbinom(n-i, 1, nc*beta[i]*beta[(i+1):n]/(b_bar^2*(n-1)) )
       # which(b==1) returns values in 1:n-i, so +i to get indices in (i+1):n
-      conns_init[[i]] <- which(b==1) + i  
+      conns_init[[i]] <- which(b == 1) + i  
     }
   }
   
@@ -226,13 +220,18 @@ nseir <- function(beta, h, alink,
         invalid <- contacts == infected_repeats
       } # implicitly makes prob of selection = nc/(n-1)
       
-      # prob of infection by at least one infected random contact
+      # infection probs between infected people and their contacts
+      probs <- alpha[3]*beta[infected_repeats]*beta[contacts]/(b_bar^2)
+      # safeguard against probabilities > 1, which happens when both
+      # -- alpha[3]/b_bar^2 > 1 (when alpha[3] large or beta right-skewed),
+      # -- both beta[i], beta[j] close to 1 (highly social)
+      if (alpha[3]/b_bar^2 > 1) {
+        probs <- pmin(probs, 1)
+      }
       # exp^(sum(log(x_i))) computationally faster than prod(x_i)
-      # safeguard against probabilities > 1
-      # -- happens when either b's or chosen a[3] are extremely high (e.g. a[3] > 0.2)
-      probs <- pmin(alpha[3]*beta[infected_repeats]*beta[contacts]/(b_bar^2), 1)
       log_prob_no_infection <- log1p(-probs)
       sum_log_probs <- tapply(log_prob_no_infection, contacts, sum)
+      # prob of infection by at least one infected random contact
       prob_infection <- 1 - exp(sum_log_probs)
       # all together, we have the desired probability
       
@@ -243,7 +242,7 @@ nseir <- function(beta, h, alink,
       # who transitions to infected from mixing
       if(length(sus_contacted) > 0) {
         # new unifs to ensure independence from network/household processes
-        u_mix <- runif(length(sus_contacted),0,1) 
+        u_mix <- runif(length(sus_contacted), 0, 1) 
         prob_idx <- match(sus_contacted, ids_contacted)
         mix_exposed <- sus_contacted[u_mix < prob_infection[prob_idx]]
       }
