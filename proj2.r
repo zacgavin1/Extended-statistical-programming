@@ -19,10 +19,16 @@
 
 
 
+<<<<<<< HEAD
 
 ################################################################################
 ######### ------- START OF MODEL SETUP AND POPULATION GENERATION ------- #########
 ################################################################################
+=======
+######################################################################
+### ------- START OF MODEL SETUP AND POPULATION GENERATION ------- ###
+######################################################################
+>>>>>>> 4b8fc47df555049b9016d8529a0fb2eee5260b50
 
 # This section defines the global parameters for the model and generates the
 # base population, assigning each of the 'n' individuals to a household.
@@ -35,9 +41,9 @@ beta <- runif(n,0,1)
 
 set.seed(13)
 
-#######################################################################
-######### ---------- HOUSEHOLD GENERATION FUNCTION ---------- ##########
-#######################################################################
+######################################################################
+######## ---------- HOUSEHOLD GENERATION FUNCTION ---------- #########
+######################################################################
 
 # generate n hh sizes uniform on {1,2,3,4,5}, make a vector repeating
 # the "household number" the size of the hh times, then cut off at length n.
@@ -45,9 +51,8 @@ set.seed(13)
 h <- rep(1:n, sample(1:h_max, n, replace = TRUE))[1:n] 
 
 
-
 ######################################################################
-######### ------- NETWORK GENERATION FUNCTION ------- ################
+############ ------- NETWORK GENERATION FUNCTION ------- #############
 ######################################################################
 
 # This function creates the social network connections between individuals
@@ -61,6 +66,7 @@ h <- rep(1:n, sample(1:h_max, n, replace = TRUE))[1:n]
 # of connection pairs for inversion and removing hh connections.
 
 get.net <- function(beta, h, nc=15) {
+  
   n <- length(h)
   b_bar <- sum(beta)/length(beta) 
   conns_init <- vector("list", n) # initialising two lists to store connections
@@ -80,7 +86,6 @@ get.net <- function(beta, h, nc=15) {
     # keep only rows of pairs where members are not in the same household
     pairs <- pairs[h[pairs[,1]] != h[pairs[,2]], , drop = FALSE] 
     
-    
     if(nrow(pairs) > 0) {
       for (i in 1:nrow(pairs)){
         # add person 1 in pair to connections list of person 2, and vice-versa
@@ -93,9 +98,10 @@ get.net <- function(beta, h, nc=15) {
   return(conns)
 }
 
-#############################################################
-######### ------- SEIR SIMULATION FUNCTION ------- ##########
-#############################################################
+
+######################################################################
+############## ------- SEIR SIMULATION FUNCTION ------- ##############
+######################################################################
 
 # This function is the core of the model. It simulates the epidemic over 
 # nt time steps, tracking the number of individuals in each SEIR compartment.
@@ -115,6 +121,7 @@ nseir <- function(beta, h, alink,
                   gamma=.4, 
                   nc=15, nt=100, pinf=.005) {
   
+  ### --- 1. Set-Up --- ###
   n <- length(beta)
   x <- rep(0,n) # everyone starts off susceptible 
   num_to_infect <- max(1, round(pinf*n))
@@ -126,39 +133,55 @@ nseir <- function(beta, h, alink,
   # for future calculation of mixing probs
   b_bar <- sum(beta)/n
   
-  # initialize counts of statuses
+  # initialize counts of statuses for day 1
   t <- S <- E <- I <- R <- rep(0, nt)
   t[1] <- 1
   S[1] <- n - num_to_infect
   I[1] <- num_to_infect
   
-  # daily simulation
+  ### --- 2. Daily Simulation --- ###
+  # each day:
+  # -- find who transitions to a different status 
+  # -- count how many people are in each status
   for(i in 2:nt) {
     
-    # random numbers to compare with probabilities
+    # random numbers assigned to each person to compare with transition probs
     u <- runif(n) 
     
-    # store who is infected
+    # keep track of infected people
     infected_indices <- which(x == 2)
     n_infected <- length(infected_indices)
     
+    ## -- 2a. Infectious to Recovered -- ##
+    # transition from infected to recover with probability = delta
+    x[x == 2 & u < delta] <- 3
+    
+    ## -- 2b. Exposed to Infectious -- ##
+    # transition from exposed to infected with probability = gamma
+    x[x == 1 & u < gamma] <- 2
+    
+    ## -- 2c. Set-Up of Susceptible to Exposed -- ##
+    # find who transitions from susceptible to exposed
     # initialize lists of those exposed through infected people 
     hh_exposed <- net_exposed <- mix_exposed <- integer(0)
     
-    # find who transitions from susceptible to exposed
+    # if nobody's infected, nobody can become exposed
     if (n_infected > 0) {
       
-      ## -- find who gets infected from household contacts -- ##
+      ## -- 2c(i). Household Exposure -- ##
+      # find who gets infected from household contacts
+      # ** prob of getting infected by a household member = alpha[1]
+      # -----
       # count how many people are infected in each household
       hh_infected_counts <- tabulate(h[infected_indices], nbins = max(h))
       # which households have someone infected in them
       infected_hh <- which(hh_infected_counts > 0)
-      # prob of infection is higher for households with multiple people infected
+      # prob of infection by at least one infected household member
       if (length(infected_hh) > 0) {
         hh_probs <- 1 - (1-alpha[1])^hh_infected_counts[infected_hh]
         # who transitions to infected in the household
         hh_exposed <- unlist(
-          Map(function(hh, prob) { # this defines a function and then applys it to each pair
+          Map(function(hh, prob) { # this applies function to each pair
             hh_members <- hh_index_list[[as.character(hh)]]
             sus <- hh_members[x[hh_members] == 0] 
             sus[u[sus] < prob]
@@ -166,7 +189,10 @@ nseir <- function(beta, h, alink,
         )
       }
       
-      ## -- find who gets infected from regular network contacts -- ##
+      ## -- 2c(ii). Regular Network Exposure -- ##
+      # find who gets infected from regular network contacts
+      # ** prob of getting infected by regular network contact = alpha[2]
+      # -----
       # who is in a regular network with someone infected
       neighbors_of_infected <- unlist(alink[infected_indices], use.names = FALSE)
       if(length(neighbors_of_infected) > 0) {
@@ -174,7 +200,7 @@ nseir <- function(beta, h, alink,
         net_infected_counts <- tabulate(neighbors_of_infected, nbins = n)
         # which networks have someone infected in them
         sus_exposed_to_net <- which(net_infected_counts > 0 & x == 0)
-        # prob of infection is higher for networks with multiple people infected
+        # prob of infection by at least one infected regular network contact
         if (length(sus_exposed_to_net) > 0) {
           net_probs <- 1 - (1-alpha[2])^net_infected_counts[sus_exposed_to_net]
           # who transitions to infected in network
@@ -182,60 +208,73 @@ nseir <- function(beta, h, alink,
         }
       }
       
-
-      ## -- find who gets infected from random mixing -- ##
+      ## -- 2c(iii). Random Mixing Exposure -- ##
+      # find who gets infected from random mixing
+      # ** prob of infection by random mixing = a[3]*b[i]*b[j]/(b_bar^2*(n-1))
+      # ** b[i], b[j] are "sociability" parameters for people i, j
+      # -----
       # total number of contacts between all infected people
       total_contacts <- n_infected * nc
       # randomly select who those contacts are
       contacts <- sample(n, total_contacts, replace = TRUE)
-      # set up for calculating mixing probs for infected people with corresponding contacts
+      # match infected people to their corresponding contacts
       infected_repeats <- rep(infected_indices, each = nc)
+      # for each infected person, replace any contacts that are themselves (rare)
+      invalid <- contacts == infected_repeats
+      while (any(invalid)) {
+        contacts[invalid] <- sample(1:n, sum(invalid), replace = TRUE)
+        invalid <- contacts == infected_repeats
+      } # implicitly makes prob of selection = nc/(n-1)
       
-      # exp^(sum(log(x_i))) faster than product(x_i)
-      # prob of infection is higher for those that mixed with multiple infected people
-      log_prob_no_infection <- log1p(-alpha[3] * beta[infected_repeats] * beta[contacts] / (b_bar^2))
+      # prob of infection by at least one infected random contact
+      # exp^(sum(log(x_i))) computationally faster than prod(x_i)
+      # safeguard against probabilities > 1
+      # -- happens when either b's or chosen a[3] are extremely high (e.g. a[3] > 0.2)
+      probs <- pmin(alpha[3]*beta[infected_repeats]*beta[contacts]/(b_bar^2), 1)
+      log_prob_no_infection <- log1p(-probs)
       sum_log_probs <- tapply(log_prob_no_infection, contacts, sum)
       prob_infection <- 1 - exp(sum_log_probs)
+      # all together, we have the desired probability
       
-      # store who came into contact with those infected
+      # keep track of who came into contact with those infected
       ids_contacted <- as.integer(names(sum_log_probs))
       # subset to those that are susceptible
       sus_contacted <- ids_contacted[x[ids_contacted] == 0]
       # who transitions to infected from mixing
-
-      if(length(sus_contacted) > 0){
-        u_mix <- runif(length(sus_contacted)) # new unifs to ensure indep. from net/hh processes 
+      if(length(sus_contacted) > 0) {
+        # new unifs to ensure independence from network/household processes
+        u_mix <- runif(length(sus_contacted),0,1) 
         prob_idx <- match(sus_contacted, ids_contacted)
         mix_exposed <- sus_contacted[u_mix < prob_infection[prob_idx]]
-
       }
+      
     }
     
-    # transition from infected to recover with probability = delta
-    x[x == 2 & u < delta] <- 3
-    # transition from exposed to infected with probability = gamma
-    x[x == 1 & u < gamma] <- 2
-    
+    ## -- 2d. Susceptible to Exposed -- ##
     # gather everyone who transitions from susceptible to exposed
     if (length(hh_exposed) > 0 || length(net_exposed) > 0 || length(mix_exposed) > 0) {
       newly_exposed <- unique(c(hh_exposed, net_exposed, mix_exposed))
       x[newly_exposed] <- 1
     }
     
-    # get daily counts of statuses and store it in a list
+    ## -- 2e. Daily Counts -- ##
+    # keep track of daily counts of statuses
     S[i] <- sum(x == 0)
     E[i] <- sum(x == 1)
     I[i] <- sum(x == 2)
     R[i] <- sum(x == 3)
     t[i] <- i
   }
+  
+  ### --- 3. Output --- ###
+  # each component of list is an SEIR status with corresponding daily counts
   return(list(t = t, S = S, E = E, I = I, R = R))
 }
 
 
-#############################################################
-######### ------- PLOTTING HELPER FUNCTION ------- ##########
-#############################################################
+######################################################################
+############## ------- PLOTTING HELPER FUNCTION ------- ##############
+######################################################################
 
 epi_plot <- function(beta, h, alink, 
                      alpha = c(0.1, 0.01, 0.01),
@@ -268,9 +307,9 @@ epi_plot <- function(beta, h, alink,
 }
 
 
-#############################################################
-######### ------- MODEL SCENARIO COMPARISON (Q5) ------- ####
-#############################################################
+######################################################################
+############# ------- MODEL SCENARIO COMPARISON ------- ##############
+######################################################################
 
 par(mfrow = c(2, 2), mar = c(4, 4, 2.5, 1), mgp = c(2.2, 0.7, 0)) #2x2 grid, mar allows good spacing, mgp moves axis
 
@@ -297,10 +336,9 @@ epi_plot(beta_const, h, adjacencyList_constant_beta, alpha = c(0, 0, 0.04),
 par(mfrow = c(1, 1))
 
 
-
-##################################################################
-############# ------- DISCUSSION OF PLOTS -------- ###############
-##################################################################
+######################################################################
+################ ------- DISCUSSION OF PLOTS -------- ################
+######################################################################
 
 # When we remove household and network effects, while holding constant the
 # total no. of daily contacts, we see the epidemic proceeding noticeably
@@ -311,9 +349,3 @@ par(mfrow = c(1, 1))
 # for household groups to all get infected, at which point there can 
 # be no disease spread in this pathway. These types of effects will
 # combine to slow the spread when compared to the mixing only model. 
-
-
-
-
-
-
