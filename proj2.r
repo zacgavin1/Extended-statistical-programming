@@ -33,7 +33,7 @@ people <- 1:n
 h_max <- 5
 beta <- runif(n, 0, 1)
 
-set.seed(13)
+
 
 ######################################################################
 ######## ---------- HOUSEHOLD GENERATION FUNCTION ---------- #########
@@ -56,17 +56,17 @@ h <- rep(1:n, sample(1:h_max, n, replace = TRUE))[1:n]
 # connections, nc is the average number of network connections someone has.
 # get.net initially generates a vector of Bernoullis for each person i, containing
 # their connections with people (i+1):n. For each person, this is immediately 
-# turned into a list of indices, to save computation time, then into a list
+# turned into a list of indices to save computation time, then into a list
 # of connection pairs for inversion and removing hh connections.
 
 get.net <- function(beta, h, nc=15) {
   
   n <- length(h)
   b_bar <- sum(beta)/length(beta) 
-  conns_init <- vector("list", n) # initialising two lists to store connections
+  conns_init <- vector(mode="list", length=n) # initialising two lists to store connections
   conns <- vector(mode="list", length=n)
   for (i in 1:n) {
-    if (i < n) { 
+    if (i<n){
       b <- rbinom(n-i, 1, nc*beta[i]*beta[(i+1):n]/(b_bar^2*(n-1)) )
       # which(b==1) returns values in 1:n-i, so +i to get indices in (i+1):n
       conns_init[[i]] <- which(b == 1) + i  
@@ -312,24 +312,24 @@ epi_plot <- function(beta, h, alink,
 
 par(mfrow = c(2, 2), mar = c(4, 4, 2.5, 1), mgp = c(2.2, 0.7, 0)) #2x2 grid, mar allows good spacing, mgp moves axis
 
-adjacencyList_variable_beta <- get.net(beta, h)
+alink <- get.net(beta, h)
 
 #scenario 1: full model with default parameters
-epi_plot(beta, h, adjacencyList_variable_beta, title = "1. Full Model")
+epi_plot(beta, h, alink, title = "1. Full Model")
 
 
 #scenario 2: random mixing only
-epi_plot(beta, h, adjacencyList_variable_beta, alpha = c(0, 0, 0.04),
+epi_plot(beta, h, alink, alpha = c(0, 0, 0.04),
          title = "2. Random Mixing Only")
 
 #scenario 3: full model with constant beta value
 beta_const <- rep(mean(beta), n)
-adjacencyList_constant_beta <- get.net(beta_const, h)
-epi_plot(beta_const, h, adjacencyList_constant_beta, 
+alink_const_beta <- get.net(beta_const, h)
+epi_plot(beta_const, h, alink_const_beta, 
          title = "3. Full Model + Constant Beta Value")
 
 #scenario 4: random mixing with constant beta
-epi_plot(beta_const, h, adjacencyList_constant_beta, alpha = c(0, 0, 0.04),
+epi_plot(beta_const, h, alink_const_beta, alpha = c(0, 0, 0.04),
          title = "4. Random Mixing + Constant Beta Value")
 
 par(mfrow = c(1, 1))
