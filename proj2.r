@@ -24,9 +24,9 @@
 ### ------- START OF MODEL SETUP AND POPULATION GENERATION ------- ###
 ######################################################################
 
-# This section defines the global parameters for the model and generates the
-# base population, assigning each of the 'n' individuals to a household.
-
+# We first define the global parameters for the model and generate the base 
+# population, setting the maximum size of a household and assigning each of the 
+# 'n' individuals a "sociability" parameter.
 
 n <- 10000
 people <- 1:n
@@ -34,13 +34,13 @@ h_max <- 5
 beta <- runif(n, 0, 1)
 
 
-
 ######################################################################
 ######## ---------- HOUSEHOLD GENERATION FUNCTION ---------- #########
 ######################################################################
 
-# generate n hh sizes uniform on {1,2,3,4,5}, make a vector repeating
+# We then generate n hh sizes uniform on {1,2,3,4,5}, make a vector repeating
 # the "household number" the size of the hh times, then cut off at length n.
+# This assigns each of the n individuals to a household.
 
 h <- rep(1:n, sample(1:h_max, n, replace = TRUE))[1:n] 
 
@@ -49,11 +49,12 @@ h <- rep(1:n, sample(1:h_max, n, replace = TRUE))[1:n]
 ############ ------- NETWORK GENERATION FUNCTION ------- #############
 ######################################################################
 
-# This function creates the social network connections between individuals
-# who are not in the same household.
+# We proceed to make a function that creates regular social network connections 
+# between individuals who are not in the same household.
 
-# beta is the length n vector of sociability parameters, h contains household 
-# connections, nc is the average number of network connections someone has.
+# * beta = length n vector of sociability parameters
+# * h = household connections
+# * nc = average number of network connections someone has
 # get.net initially generates a vector of Bernoullis for each person i, containing
 # their connections with people (i+1):n. For each person, this is immediately 
 # turned into a list of indices to save computation time, then into a list
@@ -67,7 +68,7 @@ get.net <- function(beta, h, nc=15) {
   conns_init <- vector(mode = "list", length = n) 
   conns <- vector(mode = "list", length = n)
   for (i in 1:n) {
-    if (i<n){
+    if (i < n) {
       b <- rbinom(n-i, 1, nc*beta[i]*beta[(i+1):n]/(b_bar^2*(n-1)) )
       # which(b==1) returns values in 1:n-i, so +i to get indices in (i+1):n
       conns_init[[i]] <- which(b == 1) + i  
@@ -98,17 +99,21 @@ get.net <- function(beta, h, nc=15) {
 ############## ------- SEIR SIMULATION FUNCTION ------- ##############
 ######################################################################
 
-# This function is the core of the model. It simulates the epidemic over 
-# nt time steps, tracking the number of individuals in each SEIR compartment.
+# We now create a function that simulates the epidemic over nt time steps, 
+# incorporating into the model the household and regular network contacts that 
+# can be established using the previous functions, and tracking the number of 
+# individuals in each SEIR compartment.
 
-# beta is sociability vector. h contains a list of what household each person 
-# is in. alink is a nested list of the net connections of each person. 
-# alpha contains parameters governing the prob. of exposure from each pathway. 
-# alpha[1] concerns hh infection, alpha[2] network infections, alpha[3] gen. mixing. 
-# delta is daily prob of I->R. gamma is daily prob of E->R. 
-# nc is a measure of how much "social interaction" happens in the population
-# nt is number of days the simulation runs over, and pinf is prop of population
-# initially infected
+# * beta = sociability vector 
+# * h = list of what household each person is in
+# * alink = nested list of the net connections of each person 
+# * alpha = parameters governing the prob. of exposure from each pathway 
+#  -- alpha[1] concerns hh infection, alpha[2] network infections, alpha[3] gen. mixing 
+# * delta =  daily prob of I->R 
+# * gamma = daily prob of E->R 
+# * nc = measure of how much "social interaction" happens in the population
+# * nt = number of days the simulation runs over
+# * pinf is prop of population initially infected
 
 nseir <- function(beta, h, alink, 
                   alpha=c(0.1, 0.01, 0.01), 
@@ -118,7 +123,7 @@ nseir <- function(beta, h, alink,
   
   ### --- 1. Set-Up --- ###
   n <- length(beta)
-  x <- rep(0,n) # everyone starts off susceptible 
+  x <- rep(0, n) # everyone starts off susceptible 
   num_to_infect <- max(1, round(pinf*n))
   x[sample(1:n, num_to_infect)] <- 2 # pick a few people to start off infected
   
@@ -276,6 +281,10 @@ nseir <- function(beta, h, alink,
 ############## ------- PLOTTING HELPER FUNCTION ------- ##############
 ######################################################################
 
+# We next create a function to cleanly plot SEIR simulations. The function allows
+# for users to easily change parameters of the SEIR model to visualize changes
+# in behavior by taking the same inputs as the nseir() function.
+
 epi_plot <- function(beta, h, alink, 
                      alpha = c(0.1, 0.01, 0.01),
                      delta = 0.2,
@@ -283,31 +292,37 @@ epi_plot <- function(beta, h, alink,
                      nc = 15, nt = 100, pinf = 0.005,
                      title = "SEIR Dynamics") {
   
+  # simulate the model with the chosen parameters from the epi_plot arguments
   epi <- nseir(beta, h, alink, alpha, delta, gamma, nc, nt, pinf)
   
+  # set up the plot limits, title, and axis label orientations
   plot(x = NA, y = NA, xlim = c(0, max(epi$t)), ylim = c(0, max(epi$S)), 
        xlab = "", ylab = "", main = title, las = 1)
   
+  # set up dashed grid lines
   grid(nx = NULL, ny = NULL, lty = 2, col = "gray", lwd = 1)
   
-  title(xlab = "Day", mgp = c(2.2, 0.7, 0)) #Spacing for x axis and title
-  mtext("N", side = 2, line = 2.8, las = 1) #Spacing for y axis and title
+  # set axis titles, spacing, and title orientation
+  title(xlab = "Day", mgp = c(2.2, 0.7, 0)) # x axis
+  mtext("N", side = 2, line = 2.8, las = 1) # y axis
   
+  # plot the simulation with each day connected via a line
   lines(x = epi$t, y = epi$S, lty = 1, lwd = 2)
   lines(epi$E, col = 4, lty = 1, lwd = 2) 
   lines(epi$I, col = 2, lty = 1, lwd = 2)
   lines(epi$R, col = 3, lty = 1, lwd = 2)
-
+  
+  # create the legend and set aesthetics
   legend(x = "right", 
          legend = c("Susceptible", "Exposed",
                     "Infected", "Recovered"),
          col = c("black", "blue",
                   "red", "green"),
          lty = 1, lwd = 2, seg.len = 0.5,
-         x.intersp = 0.5, y.intersp = 0.5,
-         inset = -0.22,
-         bty = "n",
-         cex = 0.9)
+         x.intersp = 0.5, y.intersp = 0.5, # spread of text
+         inset = -0.22, # distance from margin
+         bty = "n", # no box around legend
+         cex = 0.9) # font size
 }
 
 
@@ -315,28 +330,43 @@ epi_plot <- function(beta, h, alink,
 ############# ------- MODEL SCENARIO COMPARISON ------- ##############
 ######################################################################
 
-par(mfrow = c(2, 2), mar = c(4, 4, 2.5, 1), mgp = c(2.2, 0.7, 0)) #2x2 grid, mar allows good spacing, mgp moves axis
+# Finally, we plot four different scenarios for the model: (1) the full model with
+# default parameters, (2) random mixing as the only method of infection
+# (i.e. removing spread via household and network contacts), (3) the full model 
+# but setting a constant sociability parameter across the population (set as the 
+# mean of the betas), and (4) a mix of the previous two scenarios that considers
+# both random mixing only and constant sociability.
 
+# 2x2 grid, mar allows good spacing, mgp moves axis
+par(mfrow = c(2, 2), mar = c(4, 4, 2.5, 1), mgp = c(2.2, 0.7, 0)) 
+
+# regular network contacts with random betas (scenarios 1, 2)
 alink <- get.net(beta, h)
 
-#scenario 1: full model with default parameters
+# regular network contacts with constant beta (scenarios 3, 4)
+beta_const <- rep(mean(beta), n)
+alink_const_beta <- get.net(beta_const, h)
+
+# ------------------
+
+### --- SCENARIO 1: full model with default parameters --- ###
 epi_plot(beta, h, alink, title = "1. Full Model")
 
 
-#scenario 2: random mixing only
+### --- SCENARIO 2: random mixing only --- ###
 epi_plot(beta, h, alink, alpha = c(0, 0, 0.04),
          title = "2. Random Mixing Only")
 
-#scenario 3: full model with constant beta value
-beta_const <- rep(mean(beta), n)
-alink_const_beta <- get.net(beta_const, h)
+### --- SCENARIO 3: full model with constant beta value --- ###
 epi_plot(beta_const, h, alink_const_beta, 
          title = "3. Full Model + Constant Beta Value")
 
-#scenario 4: random mixing with constant beta
+### --- SCENARIO 4: random mixing with constant beta --- ###
 epi_plot(beta_const, h, alink_const_beta, alpha = c(0, 0, 0.04),
          title = "4. Random Mixing + Constant Beta Value")
 
+# ------------------
+# reset plot settings
 par(mfrow = c(1, 1))
 
 
