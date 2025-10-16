@@ -1,7 +1,9 @@
-# Zachary Gavin (s2222962): Wrote get.net, wrote household allocation, created initial nseir function, debugging and commenting
-# Shaehroz Khalid (s2869421): All plotting and visualisation, turned household allocation vector to one line, debugging and commenting
+# Zachary Gavin (s2222962): Wrote get.net, wrote household allocation, created initial nseir function, nseir optimisation, debugging and commenting
+# Shaehroz Khalid (s2869421): All plotting and visualisation, q1 into one line, nseir optimisation, debugging and commenting
 # Brandon Causing (s2901457): Completion and performance optimisation of the main nseir simulation function, debugging and commenting
 # division of work was close to 1/3 each
+
+# github: https://github.com/zacgavin1/Extended-statistical-programming.git
 
 ################################################################################
 
@@ -15,35 +17,24 @@
 # The script defines functions to generate the population and social network,
 # run the SEIR simulation, and plot the results under different scenarios.
 # The final section compares four scenarios to analyse the impact of social
-# structure and individual heterogeneity (beta) on the epidemic dynamics.
+# structure and homogeneity of the sociability parameter beta on the epidemic 
+# dynamics.
 
 
 
-
-######################################################################
-### ------- START OF MODEL SETUP AND POPULATION GENERATION ------- ###
-######################################################################
-
-# We first define the global parameters for the model and generate the base 
-# population, setting the maximum size of a household and assigning each of the 
-# 'n' individuals a "sociability" parameter.
-
-n <- 10000
-people <- 1:n
-h_max <- 5
-beta <- runif(n, 0, 1)
 
 
 ######################################################################
 ######## ---------- HOUSEHOLD GENERATION FUNCTION ---------- #########
 ######################################################################
 
-# We then generate n hh sizes uniform on {1,2,3,4,5}, make a vector repeating
+# We generate n hh sizes uniform on {1,2,3,4,5}, make a vector repeating
 # the "household number" the size of the hh times, then cut off at length n.
 # This assigns each of the n individuals to a household.
 
-h <- rep(1:n, sample(1:h_max, n, replace = TRUE))[1:n] 
-
+hh_generator <- function(n,h_max){
+  sample(rep(1:n, sample(1:h_max, n, replace = TRUE))[1:n], n) 
+}
 
 ######################################################################
 ############ ------- NETWORK GENERATION FUNCTION ------- #############
@@ -59,6 +50,9 @@ h <- rep(1:n, sample(1:h_max, n, replace = TRUE))[1:n]
 # their connections with people (i+1):n. For each person, this is immediately 
 # turned into a list of indices to save computation time, then into a list
 # of connection pairs for inversion and removing hh connections.
+
+# After experimentation with vectorising get.net, no fully vectorised version 
+# tried was faster than the version below.
 
 get.net <- function(beta, h, nc=15) {
   
@@ -148,7 +142,7 @@ nseir <- function(beta, h, alink,
     # random numbers assigned to each person to compare with transition probs
     u <- runif(n) 
     
-    # keep track of infected people
+    # keep track of infected/susceptible people
     infected_indices <- which(x == 2)
     susceptible_indices <- which(x==0)
     n_infected <- length(infected_indices)
@@ -214,19 +208,22 @@ nseir <- function(beta, h, alink,
       # ** prob of infection by random mixing = a[3]*b[i]*b[j]/(b_bar^2*(n-1))
       # ** b[i], b[j] are "sociability" parameters for people i, j
       # -----
-      
-      # generate new unifs so no undue corr. between rand. mix. infs & other inf. pathways
+
+      # generate new unifs so no undue corr. between rand. mix. infns & other infn. pathways
       u <- runif(length(susceptible_indices)) 
+      # 
       
-      # trans_probs is shape #infected x #susceptible containing infection probs
-      trans_probs <- outer(beta[infected_indices],beta[susceptible_indices])*nc*alpha[3]/(b_bar^2 * (n-1))
+      # matrix of mixing probs: shape is (#infected) x (#susceptible)
+      # -- columns = probs for particular sus. person to be infected by the infected people
+      trans_probs <- nc*alpha[3]*outer(beta[infected_indices],beta[susceptible_indices])/(b_bar^2 * (n-1))
       
-      
-      # gives infection prob for each susceptible person
-      # sum over columns (possible infectors)
+      # multiply down columns
+      # -- gives infection prob for each susceptible person (by at least one infected)
       inf_probs <- 1 - apply(1-trans_probs, MARGIN=2, FUN=prod) 
       
-      mix_exposed <- susceptible_indices[u<inf_probs]
+      # who transitions to infected via random mixing
+      mix_exposed <- susceptible_indices[u < inf_probs]
+
       
     }
     
@@ -306,6 +303,15 @@ epi_plot <- function(beta, h, alink,
 ############# ------- MODEL SCENARIO COMPARISON ------- ##############
 ######################################################################
 
+# Define the global parameters for the model, setting the maximum size
+# of a household and assigning each of the 'n' individuals a "sociability" 
+# parameter.
+
+n <- 10000
+h_max <- 5
+beta <- runif(n, 0, 1)
+h <- hh_generator(n,h_max)
+
 # Finally, we plot four different scenarios for the model: (1) the full model with
 # default parameters, (2) random mixing as the only method of infection
 # (i.e. removing spread via household and network contacts), (3) the full model 
@@ -351,11 +357,12 @@ par(mfrow = c(1, 1))
 ######################################################################
 
 # When we remove household and network effects, while holding constant the
-# total no. of daily contacts, we see the epidemic proceeding noticeably
-# faster. This occurs both in the case of non-constant and constant beta.
-# In the full model, although the total number of contacts in a day
-# is the same as the mixing only model, these contacts will be
+# avarage initial no. of daily contacts, we see the epidemic proceeding 
+# noticeably faster. This occurs both in the case of non-constant and constant
+# beta. In the full model, although the total number of contacts in a day
+# may be the same as the mixing only model, these contacts will be
 # concentrated locally. This introduces the possibility, for instance,
-# for household groups to all get infected, at which point there can 
-# be no disease spread in this pathway. These types of effects will
-# combine to slow the spread when compared to the mixing only model. 
+# for household groups (sim. networks) to all get infected, at which point  
+# there can be no disease spread those infected in the household via this 
+# pathway. These types of effects where infected people concentrate locally 
+# will slow the spread when compared to the random mixing model.
