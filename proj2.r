@@ -214,17 +214,20 @@ nseir <- function(beta, h, alink,
       # ** prob of infection by random mixing = a[3]*b[i]*b[j]/(b_bar^2*(n-1))
       # ** b[i], b[j] are "sociability" parameters for people i, j
       # -----
-      u <- runif(length(susceptible_indices)) # generate new unifs so no undue corr. between rand. mix. infs & other inf. pathways
+      # generate new unifs so no undue corr. between rand. mix. infs & other inf. pathways
+      u <- runif(length(susceptible_indices)) 
       # this is shape #infected x #susceptible
       
+      # matrix of mixing probs 
+      # -- columns = probs for particular sus. person to be infected by the infected people
       trans_probs <- nc*alpha[3]*outer(beta[infected_indices],beta[susceptible_indices])/(b_bar^2 * (n-1))
       
-      #log_trans_probs <- 
+      # multiply over columns
+      # -- gives infection prob for each susceptible person (by at least one infected)
+      inf_probs <- 1 - apply(1-trans_probs, MARGIN=2, FUN=prod) 
       
-      # gives infection prob for each susceptible person
-      inf_probs <- 1 - apply(1-trans_probs, MARGIN=2, FUN=prod) # sum over columns (possible infectors)
-      
-      mix_exposed <- susceptible_indices[u<inf_probs]
+      # who transitions to infected via random mixing
+      mix_exposed <- susceptible_indices[u < inf_probs]
       
     }
     
