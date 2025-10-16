@@ -292,10 +292,10 @@ epi_plot <- function(beta, h, alink,
          col = c("black", "blue", "red", "green"),
          lty = 1, lwd = 2,
          # --- Key Adjustments for Spacing ---
-         y.intersp = 1.2,    # Increase vertical spacing between lines
+         y.intersp = 0.9,    # Increase vertical spacing between lines
          seg.len = .5,      # Make the line segments longer and more visible
          x.intersp = 0.8,    # Adjust horizontal space between line and text
-         cex = 0.90,       # Reduce the overall font and symbol size
+         cex = 0.85,       # Reduce the overall font and symbol size
          bty = "n")         # No box
 }
 
