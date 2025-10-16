@@ -150,6 +150,7 @@ nseir <- function(beta, h, alink,
     
     # keep track of infected people
     infected_indices <- which(x == 2)
+    susceptible_indices <- which(x==0)
     n_infected <- length(infected_indices)
     
     ## -- 2a. Infectious to Recovered -- ##
@@ -213,45 +214,17 @@ nseir <- function(beta, h, alink,
       # ** prob of infection by random mixing = a[3]*b[i]*b[j]/(b_bar^2*(n-1))
       # ** b[i], b[j] are "sociability" parameters for people i, j
       # -----
-      # total number of contacts between all infected people
-      total_contacts <- n_infected * nc
-      # randomly select who those contacts are
-      contacts <- sample(n, total_contacts, replace = TRUE)
-      # match infected people to their corresponding contacts
-      infected_repeats <- rep(infected_indices, each = nc)
-      # for each infected person, replace any contacts that are themselves (rare)
-      invalid <- contacts == infected_repeats
-      while (any(invalid)) {
-        contacts[invalid] <- sample(1:n, sum(invalid), replace = TRUE)
-        invalid <- contacts == infected_repeats
-      } # implicitly makes prob of selection = nc/(n-1)
+      u <- runif(length(susceptible_indices)) # generate new unifs so no undue corr. between rand. mix. infs & other inf. pathways
+      # this is shape #infected x #susceptible
       
-      # infection probs between infected people and their contacts
-      probs <- alpha[3]*beta[infected_repeats]*beta[contacts]/(b_bar^2)
-      # safeguard against probabilities > 1, which happens when both
-      # -- alpha[3]/b_bar^2 > 1 (when alpha[3] large or beta right-skewed),
-      # -- both beta[i], beta[j] close to 1 (highly social)
-      if (alpha[3]/b_bar^2 > 1) {
-        probs <- pmin(probs, 1)
-      }
-      # exp^(sum(log(x_i))) computationally faster than prod(x_i)
-      log_prob_no_infection <- log1p(-probs)
-      sum_log_probs <- tapply(log_prob_no_infection, contacts, sum)
-      # prob of infection by at least one infected random contact
-      prob_infection <- 1 - exp(sum_log_probs)
-      # all together, we have the desired probability
+      trans_probs <- nc*alpha[3]*outer(beta[infected_indices],beta[susceptible_indices])/(b_bar^2 * (n-1))
       
-      # keep track of who came into contact with those infected
-      ids_contacted <- as.integer(names(sum_log_probs))
-      # subset to those that are susceptible
-      sus_contacted <- ids_contacted[x[ids_contacted] == 0]
-      # who transitions to infected from mixing
-      if(length(sus_contacted) > 0) {
-        # new unifs to ensure independence from network/household processes
-        u_mix <- runif(length(sus_contacted), 0, 1) 
-        prob_idx <- match(sus_contacted, ids_contacted)
-        mix_exposed <- sus_contacted[u_mix < prob_infection[prob_idx]]
-      }
+      #log_trans_probs <- 
+      
+      # gives infection prob for each susceptible person
+      inf_probs <- 1 - apply(1-trans_probs, MARGIN=2, FUN=prod) # sum over columns (possible infectors)
+      
+      mix_exposed <- susceptible_indices[u<inf_probs]
       
     }
     
