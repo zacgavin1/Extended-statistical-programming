@@ -286,16 +286,18 @@ epi_plot <- function(beta, h, alink,
   lines(epi$R, col = 3, lty = 1, lwd = 2)
   
   # create the legend and set aesthetics
-  legend(x = "right", 
+    legend(x = "right", 
          legend = c("Susceptible", "Exposed",
                     "Infected", "Recovered"),
-         col = c("black", "blue",
-                  "red", "green"),
-         lty = 1, lwd = 2, seg.len = 0.5,
-         x.intersp = 0.5, y.intersp = 0.5, # spread of text
-         inset = -0.22, # distance from margin
-         bty = "n", # no box around legend
-         cex = 0.9) # font size
+         col = c("black", "blue", "red", "green"),
+         lty = 1, lwd = 2,
+         # --- Key Adjustments for Spacing ---
+         y.intersp = 1.2,    # Increase vertical spacing between lines
+         seg.len = 1.5,      # Make the line segments longer and more visible
+         x.intersp = 0.8,    # Adjust horizontal space between line and text
+         cex = 0.75,       # Reduce the overall font and symbol size
+         inset = 0.02,       # Give a little padding from the plot edge
+         bty = "n")         # No box
 }
 
 
