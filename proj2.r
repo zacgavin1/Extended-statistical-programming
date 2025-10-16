@@ -1,5 +1,5 @@
-# Zachary Gavin (s2222962): Wrote get.net, wrote household allocation, created initial nseir function, debugging and commenting
-# Shaehroz Khalid (s2869421): All plotting and visualisation, turned household allocation vector to one line, debugging and commenting
+# Zachary Gavin (s2222962): Wrote get.net, wrote household allocation, created initial nseir function, nseir optimisation, debugging and commenting
+# Shaehroz Khalid (s2869421): All plotting and visualisation, q1 into one line, nseir optimisation, debugging and commenting
 # Brandon Causing (s2901457): Completion and performance optimisation of the main nseir simulation function, debugging and commenting
 # division of work was close to 1/3 each
 
