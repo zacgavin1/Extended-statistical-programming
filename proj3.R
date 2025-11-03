@@ -4,8 +4,8 @@ library(splines)
 
 modelling <- function(t, K) {
 
-  knots <- seq(min(t), max(t), length.out = K - 2)
-  all_knots <- seq(min(t), max(t), length.out = K + 4)
+  knots <- seq(min(t), max(t), length.out = K - 2) # or this actually 
+  all_knots <- seq(min(t), max(t), length.out = K + 4) # im not convinces this is correct
   X_tilde <- splineDesign(all_knots, t, outer.ok=TRUE) ##need outer.ok = TRUE to allow x to be outside the inner knots
   
   
