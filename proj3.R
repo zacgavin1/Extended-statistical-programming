@@ -56,12 +56,21 @@ out <- modelling(t, K)
 dim(out$X_tilde)
 print(out)
 
+X_tilde <- out$X_tilde
+X <- out$X
+S <- out$S
+pd <- out$pd
+lambda <- 10^-5
+
+
+
+
 #### ----- Question 2 ----- ####
 
 pnll <- function(gamma, y, X, lambda, S, w=rep(1,150)){
   beta <- exp(gamma)
   nlogl <- ( - t(w*y) %*% log(X %*% beta) + t(w) %*% X %*% beta
-           + .5*lambda * t(beta) %*% S %*% beta )
+             + .5*lambda * t(beta) %*% S %*% beta )
 
   as.numeric(nlogl)
 }
@@ -111,19 +120,15 @@ g_mle <- optim(par=rep(0,80), fn=pnll,  y=y, X=X,
                lambda=lambda, S=S, method='BFGS',  control = list(maxit = 5000))
 # this gives a pretty good min (checking using numDeriv.grad)
 
-#### MAIN TASK - get this working with analytic derivative. Need to redo d_nll in Q2
+#### BIGGEST REMAINING TASK - get this working with analytic derivative. 
+# Need to redo d_nll in Q2
 
 
-
-# estimate for beta
+# estimate beta, mu and f from the mle for gamma, and matrices X and X_tilde
 b_hat <- exp(g_mle$par)
-
-
-# use this to get fitted values (mu) for deaths on each of the days
-mu <- X %*% b_hat
-
-# we find f from beta using X_tilde
+mu <- X %*% b_hat       
 f <- X_tilde %*% b_hat
+
 
 # plotting overlaid graphs
 plot(data$julian, data$nhs, cex=.5, pch=19, col='blue', xlab='time', ylab='', 
@@ -173,7 +178,7 @@ for (lambda in test_range){
   
   # Compute its BIC score
   # pnll has penalty zero here
-  BIC[i] <- 2*pnll(g_mle$par, y,X, 0, S) + 2*log(length(y))*EDF(H0, Hl)
+  BIC[i] <- 2*pnll(g_mle$par, y,X, 0, S) + log(length(y))*EDF(H0, Hl)
   
   # we'll want to add this to some vector
   # we'll want to minimise BIC - ie higher EDF will be a penalty
@@ -211,7 +216,7 @@ for (i in 1:n_rep){
 }
 
 beta_boot <- exp(g_mle)
-f_boot <- X_tilde %*% t(beta_hat)
+f_boot <- X_tilde %*% t(beta_boot)
 
 CI <- apply(f_boot, MARGIN=1, FUN=quantile, probs=c(0.025, 0.975))
 
@@ -240,6 +245,9 @@ lines((min(data$julian)-30):max(data$julian), CI[2,])
 # note this currently runs much too slowly. I expect this to be fixed once 
 # optim is implemented with an analytic derivative, but will be worth 
 # rechecking in on the speed when this is fixed.
+
+# Want to double check lambda_opt as this has changed for a reason I can't 
+# determine
 
 # It's a bit weird that the infection predictions are wavy - this might
 # be something to investigate
