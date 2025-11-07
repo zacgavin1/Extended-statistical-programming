@@ -141,34 +141,60 @@ points((min(data$julian)-30):max(data$julian), f, cex=.5, pch=19, col='green')
 # Choosing lambda - once previous parts sorted, this should
 # be straightforwards to get working properly
 
-H <- function(lambda, X, b_hat, S, y){
-  mu_hat <- X %*% b_hat
-  W <- diag(y/(mu_hat)^2)
+H <- function(lambda, X, mu_hat, S, y){
+  W <- diag(drop(y/(mu_hat)^2))
   t(X) %*%W %*%X + lambda*S
 }
+
 EDF <- function(H0, H_l){
-  # this could well be quite expensive
-  trace((H_l^-1)%*%H0)
+  # note that H_l is symmetric, as t(X)WX is symm, and so is S. CHOLESKY!
+  A <- chol(H_l)
+  ATI <- forwardsolve(t(A), diag(rep(1, 80)))
+  Hl_inv <- backsolve(A, ATI)
+  sum(diag(Hl_inv%*%H0))
 }
 
-for (lambda in some_range){
-  # need to get g_mle working for this to work
-  # compute the estimator of beta for that lambda
-  g_mle <- optim(par=rep(0,80), fn=pnll, gr = d_nll, y=y, X=X, 
+test_range <- exp(seq(-13,-7,length=50))
+BIC <- rep(0, 50)
+i<-1
+for (lambda in test_range){
+  
+  # compute the estimator of gamma, thus beta, thus mu for that lambda
+  g_mle <- optim(par=rep(0,80), fn=pnll, y=y, X=X, 
                  lambda=lambda, S=S, method='BFGS')
-  b_hat <- exp(g_mle)
+  b_hat <- exp(g_mle$par)
+  mu_hat <- X %*% b_hat
+  
+  ## Computing the H matrices
+  # The fitted values mu_hat are under penalty par. lambda, even for H0
+  Hl <- H(lambda, X, mu_hat, S, y)
+  H0 <- H(0, X, mu_hat, S, y)
+  
   
   # Compute its BIC score
-  EDF <- EDF(H(0,X,b_hat,S,y), H(lambda, X,b_hat, S,y))
-  BIC <- 2*pnll(log(b_hat), y,X, lambda, S) + 2*log(n)*EDF
+  # pnll has penalty zero here
+  BIC[i] <- 2*pnll(g_mle$par, y,X, 0, S) + 2*log(length(y))*EDF(H0, Hl)
   
   # we'll want to add this to some vector
   # we'll want to minimise BIC - ie higher EDF will be a penalty
+  
+  print(i)
+  i <- i+1
 }
 
+plot(log(test_range), BIC, xlab="log(lambda)")
+bi <- which(BIC==min(BIC))
+lambda_opt <- test_range[bi]
 
+lambda_opt
+# note: this is larger than the initial guess of 10^-5, suggesting
+# I might have been right to say I thought the wiggly f meant we 
+# needed a bigger penalty
 
-#### ------ Questioon 5 ------ ####
+# we do still get a wiggly f here tho so not sure whats going on there. It is
+# mildly less wiggly than inital guess 
+
+#### ------ Question 5 ------ ####
 
 
 
