@@ -17,14 +17,31 @@ modelling <- function(t, K) {
   d <- 1:80; edur <- 3.151; sdur <- .469
   pd <- dlnorm(d, edur, sdur); pd <- pd / sum(pd)
   
-  # make sure to find a way to put no. days in here rather than hard coding 150
-  n <- length(t)
-  X <- matrix(0, 150, K)
-  for (i in 1:150) {
-    for (j in 1:min(29 + i, 80)) {
-      if (30 + i - j > 0 && 30 + i - j <= 150) {
-        X[i, ] <- X[i, ] + X_tilde[30 + i - j, ] * pd[j]
-      }
+  # I think this is wrong and that mine works. I haven't deleted incase you disagree
+  #n <- length(t)
+  #X <- matrix(0, 150, K)
+  #for (i in 1:150) {
+    #for (j in 1:min(29 + i, 80)) {
+      #if (30 + i - j > 0 && 30 + i - j <= 150) {
+      #  X[i, ] <- X[i, ] + X_tilde[30 + i - j, ] * pd[j]
+     # }
+    #}
+  #}
+  
+  # note: the last column of X_tilde does not affect X. That is because the 
+  # new infections on the last day do not affect the deaths on the last day
+  # (the model assumes you cannot die of the disease on the same day as infection)
+  
+  # rows of X give the effect of each spline on that fitted value
+  # columns give the effect that spline has on each fitted value
+  
+  X <- matrix(0, max(t)-min(t)+1, K)
+  for (i in 1:(max(t)-min(t)+1)){
+    if (i<=51){ # if min(29+i, 80)= 29+i
+      X[i,] = t(pd[(29+i):1]) %*% X_tilde[1:(29+i),] 
+      
+    } else if(i>51){ # if min(29+i, 80)=80
+      X[i,] = t(pd[80:1]) %*% X_tilde[(-50+i):(29+i), ]
     }
   }
   
@@ -70,23 +87,36 @@ y_plt <- rep(0,100)
 for (i in 1:100){
   y_plt[i] <- pnll(rep(i/8-4, 80), y, X, lambda, S)
 }
-plot(1:100/8-4, y_plt, type="l")
+plot(1:100/8-4, y_plt, type="l", xlab='const gamma')
 
 
-# Finite differencing check - to do!
+# Finite differencing check - using package
+library(numDeriv)
+
+x <- rep(0,80)
+num_deriv <- grad(function(g) pnll(g, y, X, lambda, S), g_mle$par)
+anal_deriv <- d_nll(g_mle$par, y, X, lambda, S)
+
+
+
+
 
 
 #### ----- Question 3 ----- ####
 
 # Fit the model - ie use optim to find the mle for gamma
 
-g_mle <- optim(par=rep(0,80), fn=pnll, gr = d_nll, y=y, X=X, 
-               lambda=lambda, S=S, method='BFGS')
+# try without grad first (optim will finite diff the derivs)
+g_mle <- optim(par=rep(0,80), fn=pnll,  y=y, X=X, 
+               lambda=lambda, S=S, method='BFGS',  control = list(maxit = 5000))
+# this gives a pretty good min (checking using numDeriv.grad)
 
-g_mle
+#### MAIN TASK - get this working with analytic derivative. Need to redo d_nll in Q2
+
+
 
 # estimate for beta
-b_hat = exp(g_mle$par)
+b_hat <- exp(g_mle$par)
 
 
 # use this to get fitted values (mu) for deaths on each of the days
@@ -98,12 +128,11 @@ f <- X_tilde %*% b_hat
 # plotting overlaid graphs
 plot(data$julian, data$nhs, cex=.5, pch=19, col='blue', xlab='time', ylab='', 
      xlim=c(30,220))
-points(data$julian, mu, cex=.5, pch=19, col='red') # this is not currently correct
-# as the above is not correct, this must also be wrong
+points(data$julian, mu, cex=.5, pch=19, col='red') 
 points((min(data$julian)-30):max(data$julian), f, cex=.5, pch=19, col='green')
 
-# Remark: this did not pass the sanity check, either in time or in th expected 
-# kinds of fitted values
+# Remarks: this has now passed the sanity check (after code setting X in Q1 redone)
+# f is very 'wiggly'. A stronger penalty is likely required
 
 
 
