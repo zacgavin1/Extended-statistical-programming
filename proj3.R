@@ -58,9 +58,9 @@ print(out)
 
 #### ----- Question 2 ----- ####
 
-pnll <- function(gamma, y, X, lambda, S){
+pnll <- function(gamma, y, X, lambda, S, w=rep(1,150)){
   beta <- exp(gamma)
-  nlogl <- ( - t(y) %*% log(X %*% beta) + sum(X %*% beta )
+  nlogl <- ( - t(w*y) %*% log(X %*% beta) + t(w) %*% X %*% beta
            + .5*lambda * t(beta) %*% S %*% beta )
 
   as.numeric(nlogl)
@@ -192,19 +192,54 @@ lambda_opt
 # needed a bigger penalty
 
 # we do still get a wiggly f here tho so not sure whats going on there. It is
-# mildly less wiggly than inital guess 
+# mildly less wiggly than initial guess 
 
 #### ------ Question 5 ------ ####
 
+n <- length(y)
+
+n_rep <- 200
+g_mle <- matrix(0, n_rep, 80)
+for (i in 1:n_rep){
+  wb <- tabulate(sample(n,replace=TRUE), n)
+  
+  # calculate the sample mle
+  min <- optim(par=rep(0,80), fn=pnll,  y=y, X=X, 
+                 lambda=lambda_opt, S=S, w=wb, method='BFGS',  control = list(maxit = 5000))
+  g_mle[i,] <- min$par
+  print(i)
+}
+
+beta_boot <- exp(g_mle)
+f_boot <- X_tilde %*% t(beta_hat)
+
+CI <- apply(f_boot, MARGIN=1, FUN=quantile, probs=c(0.025, 0.975))
 
 
+##### ---- Question 6 ---- #######
+# Now plot all this information on a graph
+
+# finding the actual prediction using the actual data, lambda=lambda_opt
+g_mle <- optim(par=rep(0,80), fn=pnll,  y=y, X=X, 
+               lambda=lambda_opt, S=S, method='BFGS',  control = list(maxit = 5000))
+b_hat <- exp(g_mle$par)
+mu <- X %*% b_hat
+f <- X_tilde %*% b_hat
+
+# plot actual deaths, and fitted deaths 
+plot(data$julian, data$nhs, cex=.5, pch=19, col='blue', xlab='time', ylab='', 
+     xlim=c(30,220), ylim=c(0, 1700))
+points(data$julian, mu, cex=.5, pch=19, col='red')
+
+# now plot infection predictions with empirical CI
+points((min(data$julian)-30):max(data$julian), f, cex=.5, pch=19, col='green')
+lines((min(data$julian)-30):max(data$julian), CI[1,])
+lines((min(data$julian)-30):max(data$julian), CI[2,])
 
 
+# note this currently runs much too slowly. I expect this to be fixed once 
+# optim is implemented with an analytic derivative, but will be worth 
+# rechecking in on the speed when this is fixed.
 
-
-
-
-
-
-
-
+# It's a bit weird that the infection predictions are wavy - this might
+# be something to investigate
