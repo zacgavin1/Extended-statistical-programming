@@ -56,6 +56,7 @@ out <- modelling(t, K)
 dim(out$X_tilde)
 print(out)
 
+y <- data$nhs
 X_tilde <- out$X_tilde
 X <- out$X
 S <- out$S
@@ -78,17 +79,19 @@ pnll <- function(gamma, y, X, lambda, S, w=rep(1,150)){
 # test
 pnll(rep(0, 80), y, X, lambda, S)
 
-d_nll <- function(gamma, y, X, lambda, S){
+d_nll <- function(gamma, y, X, lambda, S, w=rep(1,150)){
   beta <- exp(gamma)
   mu <- X %*% beta
-  F <- diag(drop(y/mu-1)) %*% X %*% diag(beta)  # each term here is a matrix   
-  deriv <- (apply(F, MARGIN=2, FUN=sum)
-            + diag(beta) %*% S %*% beta)
+  
+  d_likelihood <- beta * t(y*w/mu - w) %*% X
+  d_penalty <- lambda * diag(beta) %*% S %*% beta
+  deriv <- -t(d_likelihood) + d_penalty
   deriv
+  
 }
 
 y <- data$nhs
-pnll(gamma, y, X, lambda, S)
+pnll(g_mle$par, y, X, lambda, S)
 d_nll(gamma, y, X, lambda, S)
 
 ## plotting to get an idea of what pen log likelihood looks like for constant gamma
@@ -102,12 +105,12 @@ plot(1:100/8-4, y_plt, type="l", xlab='const gamma')
 # Finite differencing check - using package
 library(numDeriv)
 
-x <- rep(0,80)
+
 num_deriv <- grad(function(g) pnll(g, y, X, lambda, S), g_mle$par)
 anal_deriv <- d_nll(g_mle$par, y, X, lambda, S)
 
 
-
+max(num_deriv-anal_deriv)
 
 
 
@@ -116,7 +119,7 @@ anal_deriv <- d_nll(g_mle$par, y, X, lambda, S)
 # Fit the model - ie use optim to find the mle for gamma
 
 # try without grad first (optim will finite diff the derivs)
-g_mle <- optim(par=rep(0,80), fn=pnll,  y=y, X=X, 
+g_mle <- optim(par=rep(0,80), fn=pnll, gr=d_nll, y=y, X=X, 
                lambda=lambda, S=S, method='BFGS',  control = list(maxit = 5000))
 # this gives a pretty good min (checking using numDeriv.grad)
 
@@ -132,9 +135,9 @@ f <- X_tilde %*% b_hat
 
 # plotting overlaid graphs
 plot(data$julian, data$nhs, cex=.5, pch=19, col='blue', xlab='time', ylab='', 
-     xlim=c(30,220))
+     xlim=c(30,220), ylim=c(0,2000))
 points(data$julian, mu, cex=.5, pch=19, col='red') 
-points((min(data$julian)-30):max(data$julian), f, cex=.5, pch=19, col='green')
+lines((min(data$julian)-30):max(data$julian), f, cex=.5, pch=19, col='green')
 
 # Remarks: this has now passed the sanity check (after code setting X in Q1 redone)
 # f is very 'wiggly'. A stronger penalty is likely required
@@ -165,7 +168,7 @@ i<-1
 for (lambda in test_range){
   
   # compute the estimator of gamma, thus beta, thus mu for that lambda
-  g_mle <- optim(par=rep(0,80), fn=pnll, y=y, X=X, 
+  g_mle <- optim(par=rep(0,80), fn=pnll, gr=d_nll, y=y, X=X, 
                  lambda=lambda, S=S, method='BFGS')
   b_hat <- exp(g_mle$par)
   mu_hat <- X %*% b_hat
@@ -209,7 +212,7 @@ for (i in 1:n_rep){
   wb <- tabulate(sample(n,replace=TRUE), n)
   
   # calculate the sample mle
-  min <- optim(par=rep(0,80), fn=pnll,  y=y, X=X, 
+  min <- optim(par=rep(0,80), fn=pnll, gr=d_nll,  y=y, X=X, 
                  lambda=lambda_opt, S=S, w=wb, method='BFGS',  control = list(maxit = 5000))
   g_mle[i,] <- min$par
   print(i)
@@ -233,15 +236,23 @@ f <- X_tilde %*% b_hat
 
 # plot actual deaths, and fitted deaths 
 plot(data$julian, data$nhs, cex=.5, pch=19, col='blue', xlab='time', ylab='', 
-     xlim=c(30,220), ylim=c(0, 1700))
-points(data$julian, mu, cex=.5, pch=19, col='red')
+     xlim=c(30,220), ylim=c(0, 2000))
+lines(data$julian, mu, cex=.5, pch=19, col='red')
 
 # now plot infection predictions with empirical CI
-points((min(data$julian)-30):max(data$julian), f, cex=.5, pch=19, col='green')
+lines((min(data$julian)-30):max(data$julian), f, cex=.5, pch=19, col='green')
 lines((min(data$julian)-30):max(data$julian), CI[1,])
 lines((min(data$julian)-30):max(data$julian), CI[2,])
 
+gpolygon(
+  c(x, rev(x)),
+  c(pred[, "lwr"], rev(pred[, "upr"])),
+  col = rgb(0, 0, 1, 0.2),  # semi-transparent blue
+  border = NA
+)
 
+# Re-draw the regression line
+lines(x, pred[, "fit"], col = "blue", lwd = 2)
 # note this currently runs much too slowly. I expect this to be fixed once 
 # optim is implemented with an analytic derivative, but will be worth 
 # rechecking in on the speed when this is fixed.
