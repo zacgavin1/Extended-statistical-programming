@@ -61,7 +61,7 @@ X_tilde <- out$X_tilde
 X <- out$X
 S <- out$S
 pd <- out$pd
-lambda <- 10^-5
+lambda <- 5*10^-5
 
 
 
@@ -92,7 +92,7 @@ d_nll <- function(gamma, y, X, lambda, S, w=rep(1,150)){
 
 y <- data$nhs
 pnll(g_mle$par, y, X, lambda, S)
-d_nll(gamma, y, X, lambda, S)
+d_nll(rep(0,80), y, X, lambda, S)
 
 ## plotting to get an idea of what pen log likelihood looks like for constant gamma
 y_plt <- rep(0,100)
@@ -118,13 +118,10 @@ max(num_deriv-anal_deriv)
 
 # Fit the model - ie use optim to find the mle for gamma
 
+lambda=5*10^-5
 # try without grad first (optim will finite diff the derivs)
 g_mle <- optim(par=rep(0,80), fn=pnll, gr=d_nll, y=y, X=X, 
-               lambda=lambda, S=S, method='BFGS',  control = list(maxit = 5000))
-# this gives a pretty good min (checking using numDeriv.grad)
-
-#### BIGGEST REMAINING TASK - get this working with analytic derivative. 
-# Need to redo d_nll in Q2
+               lambda=lambda, S=S, method='BFGS')
 
 
 # estimate beta, mu and f from the mle for gamma, and matrices X and X_tilde
@@ -203,7 +200,7 @@ lambda_opt
 # mildly less wiggly than initial guess 
 
 #### ------ Question 5 ------ ####
-
+set.seed(3)
 n <- length(y)
 
 n_rep <- 200
@@ -213,7 +210,7 @@ for (i in 1:n_rep){
   
   # calculate the sample mle
   min <- optim(par=rep(0,80), fn=pnll, gr=d_nll,  y=y, X=X, 
-                 lambda=lambda_opt, S=S, w=wb, method='BFGS',  control = list(maxit = 5000))
+                 lambda=lambda_opt, S=S, w=wb, method='BFGS')
   g_mle[i,] <- min$par
   print(i)
 }
@@ -253,12 +250,8 @@ gpolygon(
 
 # Re-draw the regression line
 lines(x, pred[, "fit"], col = "blue", lwd = 2)
-# note this currently runs much too slowly. I expect this to be fixed once 
-# optim is implemented with an analytic derivative, but will be worth 
-# rechecking in on the speed when this is fixed.
 
 # Want to double check lambda_opt as this has changed for a reason I can't 
 # determine
 
-# It's a bit weird that the infection predictions are wavy - this might
-# be something to investigate
+
