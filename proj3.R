@@ -61,7 +61,7 @@ X_tilde <- out$X_tilde
 X <- out$X
 S <- out$S
 pd <- out$pd
-lambda <- 5*10^-5
+lambda <- 10^-5
 
 
 
@@ -92,7 +92,7 @@ d_nll <- function(gamma, y, X, lambda, S, w=rep(1,150)){
 
 y <- data$nhs
 pnll(g_mle$par, y, X, lambda, S)
-d_nll(rep(0,80), y, X, lambda, S)
+d_nll(gamma, y, X, lambda, S)
 
 ## plotting to get an idea of what pen log likelihood looks like for constant gamma
 y_plt <- rep(0,100)
@@ -118,10 +118,13 @@ max(num_deriv-anal_deriv)
 
 # Fit the model - ie use optim to find the mle for gamma
 
-lambda=5*10^-5
 # try without grad first (optim will finite diff the derivs)
 g_mle <- optim(par=rep(0,80), fn=pnll, gr=d_nll, y=y, X=X, 
-               lambda=lambda, S=S, method='BFGS')
+               lambda=lambda, S=S, method='BFGS',  control = list(maxit = 5000))
+# this gives a pretty good min (checking using numDeriv.grad)
+
+#### BIGGEST REMAINING TASK - get this working with analytic derivative. 
+# Need to redo d_nll in Q2
 
 
 # estimate beta, mu and f from the mle for gamma, and matrices X and X_tilde
@@ -200,7 +203,7 @@ lambda_opt
 # mildly less wiggly than initial guess 
 
 #### ------ Question 5 ------ ####
-set.seed(3)
+
 n <- length(y)
 
 n_rep <- 200
@@ -210,7 +213,7 @@ for (i in 1:n_rep){
   
   # calculate the sample mle
   min <- optim(par=rep(0,80), fn=pnll, gr=d_nll,  y=y, X=X, 
-                 lambda=lambda_opt, S=S, w=wb, method='BFGS')
+                 lambda=lambda_opt, S=S, w=wb, method='BFGS',  control = list(maxit = 5000))
   g_mle[i,] <- min$par
   print(i)
 }
@@ -225,7 +228,7 @@ CI <- apply(f_boot, MARGIN=1, FUN=quantile, probs=c(0.025, 0.975))
 # Now plot all this information on a graph
 
 # finding the actual prediction using the actual data, lambda=lambda_opt
-g_mle <- optim(par=rep(0,80), fn=pnll,  y=y, X=X, 
+g_mle <- optim(par=rep(0,80), fn=pnll, gr = d_nll,  y=y, X=X, 
                lambda=lambda_opt, S=S, method='BFGS',  control = list(maxit = 5000))
 b_hat <- exp(g_mle$par)
 mu <- X %*% b_hat
@@ -241,6 +244,31 @@ lines((min(data$julian)-30):max(data$julian), f, cex=.5, pch=19, col='green')
 lines((min(data$julian)-30):max(data$julian), CI[1,])
 lines((min(data$julian)-30):max(data$julian), CI[2,])
 
+
+
+
+library(ggplot2)
+library(dplyr)
+
+range_dt <- tibble(range = (min(data$julian) - 30):max(data$julian))
+CI_dt <- tibble(lower = t(CI)[,1], upper = t(CI)[,2])
+
+data %>% ggplot(aes(x = julian, y = nhs)) +
+  geom_point() + 
+  #geom_line() + 
+  geom_line(data = data, aes(x = julian, y = mu, color = 'blue')) +
+  geom_line(data = range_dt, aes(x = range, y = f, color = 'red')) +
+  geom_ribbon(data = range_dt, aes(x = range, y = f, ymin = CI_dt$lower, ymax = CI_dt$upper), alpha = 0.2) + 
+  theme_bw() + 
+  labs(x = "Day of the Year", y = "Deaths", title = "Daily Deaths from COVID-19", color = NULL) +
+  scale_color_discrete(labels = c("Model Fit", "New Infection Rate")) + 
+  theme(legend.position = c(0.7, 0.8),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(color = 'black'),
+        plot.title = element_text(face = "bold", size = 15))
+  
+
+
 gpolygon(
   c(x, rev(x)),
   c(pred[, "lwr"], rev(pred[, "upr"])),
@@ -250,8 +278,12 @@ gpolygon(
 
 # Re-draw the regression line
 lines(x, pred[, "fit"], col = "blue", lwd = 2)
+# note this currently runs much too slowly. I expect this to be fixed once 
+# optim is implemented with an analytic derivative, but will be worth 
+# rechecking in on the speed when this is fixed.
 
 # Want to double check lambda_opt as this has changed for a reason I can't 
 # determine
 
-
+# It's a bit weird that the infection predictions are wavy - this might
+# be something to investigate
