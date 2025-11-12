@@ -90,9 +90,10 @@ d_nll <- function(gamma, y, X, lambda, S, w=rep(1,150)){
   
 }
 
-y <- data$nhs
-pnll(g_mle$par, y, X, lambda, S)
-d_nll(gamma, y, X, lambda, S)
+#y <- data$nhs
+
+#pnll(g_mle$par, y, X, lambda, S)
+#d_nll(gamma, y, X, lambda, S)
 
 ## plotting to get an idea of what pen log likelihood looks like for constant gamma
 y_plt <- rep(0,100)
@@ -105,12 +106,18 @@ plot(1:100/8-4, y_plt, type="l", xlab='const gamma')
 # Finite differencing check - using package
 library(numDeriv)
 
+# for testing derivative by finite differencing
+g_mle <- optim(par=rep(0,80), fn=pnll, gr=d_nll, y=y, X=X, 
+               lambda=lambda, S=S, method='BFGS',  control = list(maxit = 5000))
 
 num_deriv <- grad(function(g) pnll(g, y, X, lambda, S), g_mle$par)
 anal_deriv <- d_nll(g_mle$par, y, X, lambda, S)
 
 
 max(num_deriv-anal_deriv)
+
+# do we instead want this?
+max(abs(num_deriv - anal_deriv))
 
 
 
@@ -215,13 +222,42 @@ for (i in 1:n_rep){
   min <- optim(par=rep(0,80), fn=pnll, gr=d_nll,  y=y, X=X, 
                  lambda=lambda_opt, S=S, w=wb, method='BFGS',  control = list(maxit = 5000))
   g_mle[i,] <- min$par
-  print(i)
+  #print(i)
 }
+
+wb <- matrix(0, n, n_rep)
+for (i in 1:n_rep){
+  wb[, i] <- tabulate(sample(n, replace = TRUE), n)
+}
+
+g_mle <- apply(wb, MARGIN = 2, FUN = function (wb) {
+  min <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
+        y = y, X = X, lambda = lambda_opt, S = S, w = wb,
+        method = 'BFGS', control = list(maxit = 5000))
+  min$par
+})
 
 beta_boot <- exp(g_mle)
 f_boot <- X_tilde %*% t(beta_boot)
 
 CI <- apply(f_boot, MARGIN=1, FUN=quantile, probs=c(0.025, 0.975))
+
+## potential optimization suggestion?
+# wb <- matrix(0, n, n_rep)
+# for (i in 1:n_rep){
+#   wb[, i] <- tabulate(sample(n, replace = TRUE), n)
+# }
+# 
+# g_mle <- apply(wb, MARGIN = 2, FUN = function (wb) {
+#   min <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
+#                y = y, X = X, lambda = lambda_opt, S = S, w = wb,
+#                method = 'BFGS', control = list(maxit = 5000))
+#   min$par
+# })
+# 
+# beta_boot <- exp(g_mle)
+# f_boot <- X_tilde %*% beta_boot
+# CI <- apply(f_boot, MARGIN = 1, FUN = quantile, probs = c(0.025, 0.975))
 
 
 ##### ---- Question 6 ---- #######
@@ -251,7 +287,7 @@ library(ggplot2)
 library(dplyr)
 
 range_dt <- tibble(range = (min(data$julian) - 30):max(data$julian))
-CI_dt <- tibble(lower = t(CI)[,1], upper = t(CI)[,2])
+CI_dt <- tibble(lower = CI[1,], upper = CI[2,])
 
 data %>% ggplot(aes(x = julian, y = nhs)) +
   geom_point() + 
