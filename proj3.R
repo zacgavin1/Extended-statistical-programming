@@ -56,16 +56,6 @@ modelling <- function(t, K) {
   d <- 1:80; edur <- 3.151; sdur <- .469
   pd <- dlnorm(d, edur, sdur); pd <- pd / sum(pd)
   
-  # I think this is wrong and that mine works. I haven't deleted incase you disagree
-  #n <- length(t)
-  #X <- matrix(0, 150, K)
-  #for (i in 1:150) {
-    #for (j in 1:min(29 + i, 80)) {
-      #if (30 + i - j > 0 && 30 + i - j <= 150) {
-      #  X[i, ] <- X[i, ] + X_tilde[30 + i - j, ] * pd[j]
-     # }
-    #}
-  #}
   
   ## --- X --- ##
   # note: the last column of X_tilde does not affect X. That is because the 
@@ -128,13 +118,17 @@ pnll(rep(0, 80), y, X, lambda, S)
 d_nll <- function(gamma, y, X, lambda, S, w=rep(1,150)){
   beta <- exp(gamma)
   mu <- X %*% beta
-  
-  d_likelihood <- beta * t(y*w/mu - w) %*% X
-  d_penalty <- lambda * diag(beta) %*% S %*% beta
-  deriv <- -t(d_likelihood) + d_penalty
-  deriv
-  
+  res <- w * (y / mu - 1)
+  d_likelihood <- -beta * as.vector(t(X) %*% res)
+  d_penalty <- -lambda * (beta * as.vector(S %*% beta))
+  grad <- grad_lik + grad_pen
+  as.numeric(grad)
 }
+  
+#  d_likelihood <- beta * t(y*w/mu - w) %*% X
+#  d_penalty <- lambda * diag(beta) %*% S %*% beta
+#  deriv <- -t(d_likelihood) + d_penalty
+#  deriv
 
 #y <- data$nhs
 
