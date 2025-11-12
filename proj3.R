@@ -88,6 +88,7 @@ modelling <- function(t, K) {
 }
 
 
+
 #################################################################
 ######### ---------- SMOOTHING PENALIZATION ---------- ##########
 #################################################################
@@ -221,63 +222,79 @@ data %>% ggplot(aes(x = julian, y = nhs)) +
 ###### ---------- CHOICE OF SMOOTHING PARAMETER ---------- ######
 #################################################################
 
-#### --- Question 4 --- ####
+# We now want to choose an appropriate smoothing parameter, lambda. This will
+# be chosen to minimize the BIC.
  
-# Choosing lambda - once previous parts sorted, this should
-# be straightforwards to get working properly
-
+# calculate H_lambda, the Hessian w.r.t. beta of NLL at beta_hat + lambda*S
+# --- H_lambda = X^T*W*X + lambda*S, where W = diag(y/mu_hat^2)
 H <- function(lambda, X, mu_hat, S, y){
   W <- diag(drop(y/(mu_hat)^2))
-  t(X) %*%W %*%X + lambda*S
+  t(X) %*% W %*% X + lambda*S
 }
 
+# calculate effective degrees of freedom (EDF)
+# --- EDF = tr(H_lambda^-1)
 EDF <- function(H0, H_l){
-  # note that H_l is symmetric, as t(X)WX is symm, and so is S. CHOLESKY!
+  # note that H_l is symmetric, as t(X)WX and S are symm -> CHOLESKY!
   A <- chol(H_l)
   ATI <- forwardsolve(t(A), diag(rep(1, 80)))
   Hl_inv <- backsolve(A, ATI)
-  sum(diag(Hl_inv%*%H0))
+  sum(diag(Hl_inv %*% H0))
 }
 
+
+# find_lambda_opt() finds lambda that minimizes the BIC
+# --- BIC = 2*PNLL + log(n)*EDF
+# * test_range = range of lambdas to look over for a minimizer
+# * par = set of gamma parameters to obtain gamma MLEs
+# * pnll = PNLL evaluating function
+# * d_nll = derivative of PNLL evaluating function
+# * y, X, S defined as before
+find_lambda_opt <- function(test_range, par, pnll, d_nll, y, X, S) {
+  
+  # initialize list of BIC values
+  BIC <- rep(0, length(test_range))
+  i <- 1
+  # calculate BIC for each potential lambda in range
+  for (lambda in test_range) {
+  
+    # compute the gamma MLE -> beta -> mu for that lambda
+    g_mle <- optim(par = par, fn = pnll, gr = d_nll, 
+                   y = y, X = X, lambda = lambda, S = S, method = 'BFGS')
+    b_hat <- exp(g_mle$par)
+    mu_hat <- X %*% b_hat
+  
+    # compute H matrices
+    # -- fitted values mu_hat are under penalty par. lambda, even for H0
+    Hl <- H(lambda, X, mu_hat, S, y)
+    H0 <- H(0, X, mu_hat, S, y)
+  
+    # compute BIC
+    # -- pnll has penalty zero here
+    # -- higher EDF will be a penalty
+    BIC[i] <- 2*pnll(g_mle$par, y,X, 0, S) + log(length(y))*EDF(H0, Hl)
+  
+    i <- i+1
+  }
+  
+  # find the lambda that minimizes the BIC
+  lambda_opt_index <- BIC == min(BIC)
+  lambda_opt <- test_range[lambda_opt_index]
+  
+  # output
+  lambda_opt
+}
+
+# search over log(lambda) values
 test_range <- exp(seq(-13,-7,length=50))
-BIC <- rep(0, 50)
-i<-1
-for (lambda in test_range){
-  
-  # compute the estimator of gamma, thus beta, thus mu for that lambda
-  g_mle <- optim(par=rep(0,80), fn=pnll, gr=d_nll, y=y, X=X, 
-                 lambda=lambda, S=S, method='BFGS')
-  b_hat <- exp(g_mle$par)
-  mu_hat <- X %*% b_hat
-  
-  ## Computing the H matrices
-  # The fitted values mu_hat are under penalty par. lambda, even for H0
-  Hl <- H(lambda, X, mu_hat, S, y)
-  H0 <- H(0, X, mu_hat, S, y)
-  
-  
-  # Compute its BIC score
-  # pnll has penalty zero here
-  BIC[i] <- 2*pnll(g_mle$par, y,X, 0, S) + log(length(y))*EDF(H0, Hl)
-  
-  # we'll want to add this to some vector
-  # we'll want to minimise BIC - ie higher EDF will be a penalty
-  
-  print(i)
-  i <- i+1
-}
-
-plot(log(test_range), BIC, xlab="log(lambda)")
-bi <- which(BIC==min(BIC))
-lambda_opt <- test_range[bi]
+# get the optimal lambda over this range
+lambda_opt <- find_lambda_opt(test_range, par = rep(0, 80), pnll, d_nll, y, X, S)
 
 lambda_opt
-# note: this is larger than the initial guess of 5*10^-5, suggesting
-# I might have been right to say I thought the wiggly f meant we 
-# needed a bigger penalty
 
-# we do still get a wiggly f here tho so not sure whats going on there. It is
-# mildly less wiggly than initial guess 
+# note: this is larger than the initial guess of 5*10^-5, validating claim in 
+# sanity check that we needed a bigger penalty
+
 
 
 #################################################################
