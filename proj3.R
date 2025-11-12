@@ -1,19 +1,57 @@
-library(splines)
+## GENERAL DESCRIPTION
+
+# The aim of this project is to use data from the year 2020 on daily deaths from 
+# COVID-19 in English hospitals in order to estimate the (unobserved) daily counts 
+# of new infections that ultimately resulted in these deaths through fitting a 
+# deconvolution model. This model is fit through B-splines (smoothly connected 
+# curve segments) and a smoothing penalty (to avoid overfitting the variation).
+# After choosing an appropriate smoothing parameter for the fit (based on the BIC 
+# criterion), we assess the uncertainty of the fit through non-parametric bootstrap 
+# confidence intervals. Finally, we visualize our findings in a plot.
+
+
+library(splines) # splineDesign()
+library(numDeriv) # grad() (finite differencing)
+library(ggplot2) # visuals
+library(dplyr)
+
 
 data <- read.table("engcov.txt", header=T, stringsAsFactor=T)
 
 
-# t should
+#################################################################
+####### ---------- BUILDING THE MODEL MATRICES ---------- #######
+#################################################################
+
+# We first want to build the matrices that will be used for fitting the model.
+# In particular, these are:
+# * X_tilde - the B-spline basis for the infections,
+# * X - the model matrix for the deaths, and
+# * S - the penalty matrix
+
+
+# * t = start and end dates (calendar day) 
+# * K = the number of basis functions
+# modelling() returns X_tilde, X, S, and pd (infection-to-death time probability 
+# distribution)
 modelling <- function(t, K) {
-
+  
+  # first and last day
   range_t <- range(t)
-  internal_knots <- seq(range_t[1]-30, range_t[2], length.out = K - 2)
-  diff <- internal_knots[2]-internal_knots[1]
-  all_knots <- c(range_t[1]-30-3*diff, range_t[1]-30-2*diff, range_t[1]-30-diff, internal_knots,
+  # evenly spaced time intervals (knots) starting 30 days before first death
+  # -- accounts for delay between infection and death
+  # -- defines B-splines
+  internal_knots <- seq(range_t[1] - 30, range_t[2], length.out = K - 2)
+  # space between intervals
+  diff <- internal_knots[2] - internal_knots[1]
+  # extra knots to make proper 4th-order (cubic) spline
+  all_knots <- c(range_t[1]-30-3*diff, range_t[1]-30-2*diff, range_t[1]-30-diff, 
+                 internal_knots,
                  range_t[2]+diff, range_t[2]+2*diff, range_t[2]+3*diff)
-
+  # spline basis matrix (rows = days, columns = spline basis functions)
   X_tilde <- splineDesign(all_knots, (min(t)-30):max(t) , ord = 4)
   
+  ##### should this part be outside of the function and be an input?
   d <- 1:80; edur <- 3.151; sdur <- .469
   pd <- dlnorm(d, edur, sdur); pd <- pd / sum(pd)
   
@@ -35,17 +73,20 @@ modelling <- function(t, K) {
   # rows of X give the effect of each spline on that fitted value
   # columns give the effect that spline has on each fitted value
   
-  X <- matrix(0, max(t)-min(t)+1, K)
-  for (i in 1:(max(t)-min(t)+1)){
-    if (i<=51){ # if min(29+i, 80)= 29+i
-      X[i,] = t(pd[(29+i):1]) %*% X_tilde[1:(29+i),] 
+  X <- matrix(0, max(t) - min(t) + 1, K)
+  # X_i = sum (from j = 1 to min(29 + i, 80)) X_tilde_{30 + i - j} * pd(j)
+  for (i in 1:(max(t) - min(t) + 1)) {
+    if (i <= 51) { # if min(29+i, 80) = 29+i
+      X[i,] = t(pd[(29 + i):1]) %*% X_tilde[1:(29 + i),] 
       
-    } else if(i>51){ # if min(29+i, 80)=80
-      X[i,] = t(pd[80:1]) %*% X_tilde[(-50+i):(29+i), ]
+    } else if(i > 51) { # if min(29+i, 80)=80
+      X[i,] = t(pd[80:1]) %*% X_tilde[(-50 + i):(29 + i),]
     }
   }
   
+  # for calculating smoothing penalty
   S <- crossprod(diff(diag(K), diff = 2))
+  
   list(X_tilde = X_tilde, X = X, S = S, pd = pd)
 }
 
@@ -53,8 +94,6 @@ modelling <- function(t, K) {
 t <- c(min(data$julian),max(data$julian))
 K <- 80
 out <- modelling(t, K)
-dim(out$X_tilde)
-print(out)
 
 y <- data$nhs
 X_tilde <- out$X_tilde
@@ -64,6 +103,9 @@ pd <- out$pd
 lambda <- 10^-5
 
 
+#################################################################
+######### ---------- SMOOTHING PENALIZATION ---------- ##########
+#################################################################
 
 
 #### ----- Question 2 ----- ####
@@ -151,6 +193,10 @@ lines((min(data$julian)-30):max(data$julian), f, cex=.5, pch=19, col='green')
 
 
 
+#################################################################
+###### ---------- CHOICE OF SMOOTHING PARAMETER ---------- ######
+#################################################################
+
 #### --- Question 4 --- ####
  
 # Choosing lambda - once previous parts sorted, this should
@@ -209,6 +255,12 @@ lambda_opt
 # we do still get a wiggly f here tho so not sure whats going on there. It is
 # mildly less wiggly than initial guess 
 
+
+#################################################################
+####### ---------- ASSESSING MODEL UNCERTAINTY ---------- #######
+#################################################################
+
+
 #### ------ Question 5 ------ ####
 
 n <- length(y)
@@ -225,22 +277,11 @@ for (i in 1:n_rep){
   #print(i)
 }
 
-wb <- matrix(0, n, n_rep)
-for (i in 1:n_rep){
-  wb[, i] <- tabulate(sample(n, replace = TRUE), n)
-}
-
-g_mle <- apply(wb, MARGIN = 2, FUN = function (wb) {
-  min <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
-        y = y, X = X, lambda = lambda_opt, S = S, w = wb,
-        method = 'BFGS', control = list(maxit = 5000))
-  min$par
-})
-
 beta_boot <- exp(g_mle)
 f_boot <- X_tilde %*% t(beta_boot)
 
 CI <- apply(f_boot, MARGIN=1, FUN=quantile, probs=c(0.025, 0.975))
+
 
 ## potential optimization suggestion?
 # wb <- matrix(0, n, n_rep)
@@ -258,6 +299,12 @@ CI <- apply(f_boot, MARGIN=1, FUN=quantile, probs=c(0.025, 0.975))
 # beta_boot <- exp(g_mle)
 # f_boot <- X_tilde %*% beta_boot
 # CI <- apply(f_boot, MARGIN = 1, FUN = quantile, probs = c(0.025, 0.975))
+
+
+
+#################################################################
+######## ---------- VISUALIZING THE MODEL FIT ---------- ########
+#################################################################
 
 
 ##### ---- Question 6 ---- #######
