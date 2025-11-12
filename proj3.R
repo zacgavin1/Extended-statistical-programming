@@ -168,8 +168,7 @@ g_mle <- optim(par=rep(0,80), fn=pnll, gr=d_nll, y=y, X=X,
                lambda=lambda, S=S, method='BFGS',  control = list(maxit = 5000))
 # this gives a pretty good min (checking using numDeriv.grad)
 
-#### BIGGEST REMAINING TASK - get this working with analytic derivative. 
-# Need to redo d_nll in Q2
+
 
 
 # estimate beta, mu and f from the mle for gamma, and matrices X and X_tilde
