@@ -13,7 +13,6 @@
 library(splines) # splineDesign()
 library(numDeriv) # grad() (finite differencing)
 library(ggplot2) # visuals
-library(dplyr)
 
 
 data <- read.table("engcov.txt", header=T, stringsAsFactor=T)
@@ -196,10 +195,10 @@ f_sanity <- X_tilde %*% b_hat_sanity
 
 
 # turn range of potential infection days into data frame for plotting purposes
-range_dt <- tibble(range = (min(data$julian) - 30):max(data$julian))
+range_dt <- data.frame(range = (min(data$julian) - 30):max(data$julian))
 
 # plot the sanity check fitted deaths and fitted infections
-data %>% ggplot(aes(x = julian, y = nhs)) + 
+data |> ggplot(aes(x = julian, y = nhs)) + 
   geom_point() + # actual deaths
   geom_line(aes(x = julian, y = mu_sanity, color = 'blue')) + # fitted deaths
   geom_line(data = range_dt, aes(x = range, y = f_sanity, color = 'red')) + # fitted infs
@@ -254,13 +253,16 @@ find_lambda_opt <- function(test_range, par, pnll, d_nll, y, X, S) {
   
   # initialize list of BIC values
   BIC <- rep(0, length(test_range))
+  converges <- c()
   i <- 1
   # calculate BIC for each potential lambda in range
   for (lambda in test_range) {
   
     # compute the gamma MLE -> beta -> mu for that lambda
     g_mle <- optim(par = par, fn = pnll, gr = d_nll, 
-                   y = y, X = X, lambda = lambda, S = S, method = 'BFGS')
+                   y = y, X = X, lambda = lambda, S = S, method = 'BFGS')#,
+                   #control = list(abstol = 1e-30, maxit = 100000))
+    converges <- append(converges, g_mle$convergence)
     b_hat <- exp(g_mle$par)
     mu_hat <- X %*% b_hat
   
@@ -280,6 +282,10 @@ find_lambda_opt <- function(test_range, par, pnll, d_nll, y, X, S) {
   # find the lambda that minimizes the BIC
   lambda_opt_index <- BIC == min(BIC)
   lambda_opt <- test_range[lambda_opt_index]
+  
+  plot(test_range, BIC)
+  
+  print(converges)
   
   # output
   lambda_opt
@@ -359,15 +365,9 @@ mu <- X %*% b_hat
 f <- X_tilde %*% b_hat
 
 
+CI_dt <- data.frame(lower = CI[1,], upper = CI[2,])
 
-
-library(ggplot2)
-library(dplyr)
-
-range_dt <- tibble(range = (min(data$julian) - 30):max(data$julian))
-CI_dt <- tibble(lower = CI[1,], upper = CI[2,])
-
-data %>% ggplot(aes(x = julian, y = nhs)) +
+data |> ggplot(aes(x = julian, y = nhs)) +
   geom_point() + 
   #geom_line() + 
   geom_line(data = data, aes(x = julian, y = mu, color = 'blue')) +
