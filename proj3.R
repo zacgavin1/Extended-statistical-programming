@@ -345,10 +345,13 @@ data %>% ggplot(aes(x = julian, y = nhs)) +
   #geom_line() + 
   geom_line(data = data, aes(x = julian, y = mu, color = 'blue')) +
   geom_line(data = range_dt, aes(x = range, y = f, color = 'red')) +
-  geom_ribbon(data = range_dt, aes(x = range, y = f, ymin = CI_dt$lower, ymax = CI_dt$upper), alpha = 0.2) + 
+  geom_ribbon(data = range_dt, aes(x = range, y = f, 
+                                   ymin = CI_dt$lower, ymax = CI_dt$upper), 
+              alpha = 0.2) + 
   theme_bw() + 
-  labs(x = "Day of the Year", y = "Deaths", title = "Daily Deaths from COVID-19", color = NULL) +
-  scale_color_discrete(labels = c("Model Fit", "New Infection Rate")) + 
+  labs(x = "Day of the Year", y = "Counts", 
+       title = "Daily Infections and Deaths from COVID-19", color = NULL) +
+  scale_color_discrete(labels = c("Fitted Deaths", "Estimated New Infections")) + 
   theme(legend.position = c(0.7, 0.8),
         legend.background = element_blank(),
         legend.box.background = element_rect(color = 'black'),
