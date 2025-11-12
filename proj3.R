@@ -252,7 +252,7 @@ bi <- which(BIC==min(BIC))
 lambda_opt <- test_range[bi]
 
 lambda_opt
-# note: this is larger than the initial guess of 10^-5, suggesting
+# note: this is larger than the initial guess of 5*10^-5, suggesting
 # I might have been right to say I thought the wiggly f meant we 
 # needed a bigger penalty
 
@@ -276,7 +276,7 @@ for (i in 1:n_rep){
   
   # calculate the sample mle
   min <- optim(par=rep(0,80), fn=pnll, gr=d_nll,  y=y, X=X, 
-                 lambda=lambda_opt, S=S, w=wb, method='BFGS',  control = list(maxit = 5000))
+                 lambda=lambda_opt, S=S, w=wb, method='BFGS')
   g_mle[i,] <- min$par
   #print(i)
 }
@@ -287,22 +287,22 @@ f_boot <- X_tilde %*% t(beta_boot)
 CI <- apply(f_boot, MARGIN=1, FUN=quantile, probs=c(0.025, 0.975))
 
 
-## potential optimization suggestion?
-# wb <- matrix(0, n, n_rep)
-# for (i in 1:n_rep){
-#   wb[, i] <- tabulate(sample(n, replace = TRUE), n)
-# }
-# 
-# g_mle <- apply(wb, MARGIN = 2, FUN = function (wb) {
-#   min <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
-#                y = y, X = X, lambda = lambda_opt, S = S, w = wb,
-#                method = 'BFGS', control = list(maxit = 5000))
-#   min$par
-# })
-# 
-# beta_boot <- exp(g_mle)
-# f_boot <- X_tilde %*% beta_boot
-# CI <- apply(f_boot, MARGIN = 1, FUN = quantile, probs = c(0.025, 0.975))
+#potential optimization suggestion?
+wb <- matrix(0, n, n_rep)
+for (i in 1:n_rep){
+   wb[, i] <- tabulate(sample(n, replace = TRUE), n)
+}
+ 
+g_mle <- apply(wb, MARGIN = 2, FUN = function (wb) {
+  min <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
+                y = y, X = X, lambda = lambda_opt, S = S, w = wb,
+                method = 'BFGS')
+  min$par
+})
+ 
+beta_boot <- exp(g_mle)
+f_boot <- X_tilde %*% beta_boot
+CI <- apply(f_boot, MARGIN = 1, FUN = quantile, probs = c(0.025, 0.975))
 
 
 
@@ -316,20 +316,10 @@ CI <- apply(f_boot, MARGIN=1, FUN=quantile, probs=c(0.025, 0.975))
 
 # finding the actual prediction using the actual data, lambda=lambda_opt
 g_mle <- optim(par=rep(0,80), fn=pnll, gr = d_nll,  y=y, X=X, 
-               lambda=lambda_opt, S=S, method='BFGS',  control = list(maxit = 5000))
+               lambda=lambda_opt, S=S, method='BFGS')
 b_hat <- exp(g_mle$par)
 mu <- X %*% b_hat
 f <- X_tilde %*% b_hat
-
-# plot actual deaths, and fitted deaths 
-plot(data$julian, data$nhs, cex=.5, pch=19, col='blue', xlab='time', ylab='', 
-     xlim=c(30,220), ylim=c(0, 2000))
-lines(data$julian, mu, cex=.5, pch=19, col='red')
-
-# now plot infection predictions with empirical CI
-lines((min(data$julian)-30):max(data$julian), f, cex=.5, pch=19, col='green')
-lines((min(data$julian)-30):max(data$julian), CI[1,])
-lines((min(data$julian)-30):max(data$julian), CI[2,])
 
 
 
@@ -359,21 +349,4 @@ data %>% ggplot(aes(x = julian, y = nhs)) +
   
 
 
-gpolygon(
-  c(x, rev(x)),
-  c(pred[, "lwr"], rev(pred[, "upr"])),
-  col = rgb(0, 0, 1, 0.2),  # semi-transparent blue
-  border = NA
-)
 
-# Re-draw the regression line
-lines(x, pred[, "fit"], col = "blue", lwd = 2)
-# note this currently runs much too slowly. I expect this to be fixed once 
-# optim is implemented with an analytic derivative, but will be worth 
-# rechecking in on the speed when this is fixed.
-
-# Want to double check lambda_opt as this has changed for a reason I can't 
-# determine
-
-# It's a bit weird that the infection predictions are wavy - this might
-# be something to investigate
