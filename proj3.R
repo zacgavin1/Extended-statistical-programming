@@ -37,6 +37,7 @@ data <- read.table("engcov.txt", header=T, stringsAsFactor=T)
 modelling <- function(t, K) {
   
   ## --- X_tilde --- ##
+  
   # first and last day
   range_t <- range(t)
   # evenly spaced time intervals (knots) starting 30 days before first death
@@ -56,18 +57,9 @@ modelling <- function(t, K) {
   d <- 1:80; edur <- 3.151; sdur <- .469
   pd <- dlnorm(d, edur, sdur); pd <- pd / sum(pd)
   
-  # I think this is wrong and that mine works. I haven't deleted incase you disagree
-  #n <- length(t)
-  #X <- matrix(0, 150, K)
-  #for (i in 1:150) {
-    #for (j in 1:min(29 + i, 80)) {
-      #if (30 + i - j > 0 && 30 + i - j <= 150) {
-      #  X[i, ] <- X[i, ] + X_tilde[30 + i - j, ] * pd[j]
-     # }
-    #}
-  #}
   
   ## --- X --- ##
+  
   # note: the last column of X_tilde does not affect X. That is because the 
   # new infections on the last day do not affect the deaths on the last day
   # (the model assumes you cannot die of the disease on the same day as infection)
@@ -87,6 +79,7 @@ modelling <- function(t, K) {
   }
   
   ## --- S --- ##
+  
   # for calculating smoothing penalty
   S <- crossprod(diff(diag(K), diff = 2))
   
@@ -111,11 +104,11 @@ lambda <- 10^-5
 ######### ---------- SMOOTHING PENALIZATION ---------- ##########
 #################################################################
 
+# We now want to be able to evaluate the penalized negative log-likelihood and
+# its derivative vector in order to find an optimal smoothing parameter.
 
-#### ----- Question 2 ----- ####
-
-pnll <- function(gamma, y, X, lambda, S, w=rep(1,150)){
-  beta <- exp(gamma)
+pnll <- function(gamma, y, X, lambda, S, w = rep(1, 150)) {
+  beta <- exp(gamma) 
   nlogl <- ( - t(w*y) %*% log(X %*% beta) + t(w) %*% X %*% beta
              + .5*lambda * t(beta) %*% S %*% beta )
 
@@ -125,7 +118,7 @@ pnll <- function(gamma, y, X, lambda, S, w=rep(1,150)){
 # test
 pnll(rep(0, 80), y, X, lambda, S)
 
-d_nll <- function(gamma, y, X, lambda, S, w=rep(1,150)){
+d_nll <- function(gamma, y, X, lambda, S, w=rep(1,150)) {
   beta <- exp(gamma)
   mu <- X %*% beta
   
