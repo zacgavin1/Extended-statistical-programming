@@ -36,6 +36,7 @@ data <- read.table("engcov.txt", header=T, stringsAsFactor=T)
 # distribution)
 modelling <- function(t, K) {
   
+  ## --- X_tilde --- ##
   # first and last day
   range_t <- range(t)
   # evenly spaced time intervals (knots) starting 30 days before first death
@@ -66,6 +67,7 @@ modelling <- function(t, K) {
     #}
   #}
   
+  ## --- X --- ##
   # note: the last column of X_tilde does not affect X. That is because the 
   # new infections on the last day do not affect the deaths on the last day
   # (the model assumes you cannot die of the disease on the same day as infection)
@@ -84,9 +86,11 @@ modelling <- function(t, K) {
     }
   }
   
+  ## --- S --- ##
   # for calculating smoothing penalty
   S <- crossprod(diff(diag(K), diff = 2))
   
+  # output
   list(X_tilde = X_tilde, X = X, S = S, pd = pd)
 }
 
