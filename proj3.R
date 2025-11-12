@@ -37,6 +37,7 @@ data <- read.table("engcov.txt", header=T, stringsAsFactor=T)
 modelling <- function(t, K) {
   
   ## --- X_tilde --- ##
+  
   # first and last day
   range_t <- range(t)
   # evenly spaced time intervals (knots) starting 30 days before first death
@@ -58,6 +59,7 @@ modelling <- function(t, K) {
   
   
   ## --- X --- ##
+  
   # note: the last column of X_tilde does not affect X. That is because the 
   # new infections on the last day do not affect the deaths on the last day
   # (the model assumes you cannot die of the disease on the same day as infection)
@@ -77,6 +79,7 @@ modelling <- function(t, K) {
   }
   
   ## --- S --- ##
+  
   # for calculating smoothing penalty
   S <- crossprod(diff(diag(K), diff = 2))
   
@@ -84,107 +87,134 @@ modelling <- function(t, K) {
   list(X_tilde = X_tilde, X = X, S = S, pd = pd)
 }
 
-# t contains the start and end days of the data we have
-t <- c(min(data$julian),max(data$julian))
-K <- 80
-out <- modelling(t, K)
-
-y <- data$nhs
-X_tilde <- out$X_tilde
-X <- out$X
-S <- out$S
-pd <- out$pd
-lambda <- 10^-5
 
 
 #################################################################
 ######### ---------- SMOOTHING PENALIZATION ---------- ##########
 #################################################################
 
+# We now want to be able to evaluate the penalized negative log-likelihood and
+# its derivative vector for the future application of finding an optimal 
+# smoothing parameter.
 
-#### ----- Question 2 ----- ####
 
-pnll <- function(gamma, y, X, lambda, S, w=rep(1,150)){
-  beta <- exp(gamma)
-  nlogl <- ( - t(w*y) %*% log(X %*% beta) + t(w) %*% X %*% beta
-             + .5*lambda * t(beta) %*% S %*% beta )
-
+# pnll() returns the penalized negative log-likelihood
+# * gamma = some set of K parameters
+# * y = deaths
+# * X = model matrix
+# * lambda = smoothing parameter
+# * S = penalty matrix
+# * w = weights (used in bootstrapping later)
+pnll <- function(gamma, y, X, lambda, S, w = rep(1, 150)) {
+  
+  # beta = exp(gamma)
+  # -- ensures model parameters, beta, are positive
+  # -- therefore ensures infection curve f is positive
+  beta <- exp(gamma) 
+  
+  # penalized negative log-likelihood = NLL + P
+  # -- NLL = - sum(w*y*log(mu)) + sum(w*mu); mu = X*beta, the death model fit
+  # -- P = 0.5*lambda*(beta^T*S*beta)
+  nlogl <- - t(w*y) %*% log(X %*% beta) + t(w) %*% X %*% beta
+             + .5*lambda * t(beta) %*% S %*% beta
+  
+  # convert resulting 1x1 matrix to scalar
+  # return PNLL
   as.numeric(nlogl)
 }
 
-# test
-pnll(rep(0, 80), y, X, lambda, S)
-
+# d_nll() returns gradient of penalized negative log-likelihood w.r.t. gamma
+# * gamma, y, X, lambda, S, w defined as before in pnll()
 d_nll <- function(gamma, y, X, lambda, S, w = rep(1, 150)) {
+  
+  # beta = exp(gamma); mu = X*beta (as in pnll())
   beta <- exp(gamma)
   mu <- X %*% beta
-
+  
+  # dNLL/dgamma = diag(y*w/mu - w)*X*diag(beta)
   d_likelihood <- beta * t(y*w/mu - w) %*% X
+  # dP/dgamma = lambda*diag(beta)*S*beta
   d_penalty <- lambda * diag(beta) %*% S %*% beta
+  # dPNLL/dgamma = dNLL/dgamma + dP/dgamma
   deriv <- -t(d_likelihood) + d_penalty
+  
+  # return derivative vector
   deriv
 }
-  
 
 
+##### -------- Testing the Derivative Function -------- #####
 
-#y <- data$nhs
+# We make sure the derivative function is correct by comparing the output to 
+# finite differencing, an approximation of the derivative.
 
-#pnll(g_mle$par, y, X, lambda, S)
-#d_nll(gamma, y, X, lambda, S)
+# start and end days of the data
+t <- c(min(data$julian), max(data$julian))
+# number of basis functions
+K <- 80
+# X_tilde, X, S, pd
+out <- modelling(t, K)
+X_tilde <- out$X_tilde; X <- out$X; S <- out$S; pd <- out$pd
+# deaths
+y <- data$nhs
 
-## plotting to get an idea of what pen log likelihood looks like for constant gamma
-y_plt <- rep(0,100)
-for (i in 1:100){
-  y_plt[i] <- pnll(rep(i/8-4, 80), y, X, lambda, S)
-}
-plot(1:100/8-4, y_plt, type="l", xlab='const gamma')
+# lambda for testing purposes
+lambda_test <- 1e-05
 
+# find gammas that minimize PNLL using the BFGS method
+g_mle_test <- optim(par = rep(0, 80), fn = pnll, gr = d_nll, 
+                    y = y, X = X, lambda = lambda_test, S = S, 
+                    method = 'BFGS', control = list(maxit = 5000))
 
-# Finite differencing check - using package
-library(numDeriv)
+# approximate gradient of PNLL
+num_deriv <- grad(function(g) pnll(g, y, X, lambda_test, S), g_mle_test$par)
+# exact gradient of PNLL
+anal_deriv <- d_nll(g_mle_test$par, y, X, lambda_test, S)
 
-# for testing derivative by finite differencing
-g_mle <- optim(par=rep(0,80), fn=pnll, gr=d_nll, y=y, X=X, 
-               lambda=lambda, S=S, method='BFGS',  control = list(maxit = 5000))
-
-num_deriv <- grad(function(g) pnll(g, y, X, lambda, S), g_mle$par)
-anal_deriv <- d_nll(g_mle$par, y, X, lambda, S)
-
-
-max(num_deriv-anal_deriv)
-
-# do we instead want this?
-max(abs(num_deriv - anal_deriv))
-
-
-
-#### ----- Question 3 ----- ####
-
-# Fit the model - ie use optim to find the mle for gamma
-
-# try without grad first (optim will finite diff the derivs)
-g_mle <- optim(par=rep(0,80), fn=pnll, gr=d_nll, y=y, X=X, 
-               lambda=lambda, S=S, method='BFGS',  control = list(maxit = 5000))
-# this gives a pretty good min (checking using numDeriv.grad)
+# find the most that the resulting gradients differ from each other
+max(abs(num_deriv - anal_deriv)) # very small ~ 10^-5, so should be correct 
 
 
+######## -------- Preliminary Sanity Check -------- #########
+
+# Before proceeding, and as part of finding sane starting values for gamma, we
+# fit the model using lambda = 5 * 10^-5 and plot the actual and fitted deaths,
+# as well as the fitted infection curve, f.
+
+# for sanity check
+lambda_sanity <- 5e-05
+# find minimizing gammas for PNLL based on sanity check lambda
+g_mle_sanity <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
+                      y = y, X = X, lambda = lambda_sanity, S = S,
+                      method = 'BFGS',  control = list(maxit = 5000))
 
 
-# estimate beta, mu and f from the mle for gamma, and matrices X and X_tilde
-b_hat <- exp(g_mle$par)
-mu <- X %*% b_hat       
-f <- X_tilde %*% b_hat
+# estimate beta, mu, and f (= X_tilde*beta) from gamma MLE
+b_hat_sanity <- exp(g_mle_sanity$par)
+mu_sanity <- X %*% b_hat_sanity       
+f_sanity <- X_tilde %*% b_hat_sanity
 
 
-# plotting overlaid graphs
-plot(data$julian, data$nhs, cex=.5, pch=19, col='blue', xlab='time', ylab='', 
-     xlim=c(30,220), ylim=c(0,2000))
-points(data$julian, mu, cex=.5, pch=19, col='red') 
-lines((min(data$julian)-30):max(data$julian), f, cex=.5, pch=19, col='green')
+# turn range of potential infection days into data frame for plotting purposes
+range_dt <- tibble(range = (min(data$julian) - 30):max(data$julian))
 
-# Remarks: this has now passed the sanity check (after code setting X in Q1 redone)
-# f is very 'wiggly'. A stronger penalty is likely required
+# plot the sanity check fitted deaths and fitted infections
+data %>% ggplot(aes(x = julian, y = nhs)) + 
+  geom_point() + # actual deaths
+  geom_line(aes(x = julian, y = mu_sanity, color = 'blue')) + # fitted deaths
+  geom_line(data = range_dt, aes(x = range, y = f_sanity, color = 'red')) + # fitted infs
+  theme_bw() + 
+  scale_color_discrete(labels = c("Fitted Deaths", "Estimated New Infections")) +
+  labs(title = "Sanity Check", subtitle = "(lambda = 5x10^-5)",
+       x = "Day of the Year", y = "Counts") +
+  theme(plot.subtitle = element_text(size = 10),
+        legend.title = element_blank(),
+        legend.position = c(0.7, 0.8),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(color = 'black'))
+
+# Remarks: this has now passed the sanity check
+# -- f is very 'wiggly'; a stronger penalty is likely required
 
 
 
@@ -192,63 +222,79 @@ lines((min(data$julian)-30):max(data$julian), f, cex=.5, pch=19, col='green')
 ###### ---------- CHOICE OF SMOOTHING PARAMETER ---------- ######
 #################################################################
 
-#### --- Question 4 --- ####
+# We now want to choose an appropriate smoothing parameter, lambda. This will
+# be chosen to minimize the BIC.
  
-# Choosing lambda - once previous parts sorted, this should
-# be straightforwards to get working properly
-
+# calculate H_lambda, the Hessian w.r.t. beta of NLL at beta_hat + lambda*S
+# --- H_lambda = X^T*W*X + lambda*S, where W = diag(y/mu_hat^2)
 H <- function(lambda, X, mu_hat, S, y){
   W <- diag(drop(y/(mu_hat)^2))
-  t(X) %*%W %*%X + lambda*S
+  t(X) %*% W %*% X + lambda*S
 }
 
+# calculate effective degrees of freedom (EDF)
+# --- EDF = tr(H_lambda^-1)
 EDF <- function(H0, H_l){
-  # note that H_l is symmetric, as t(X)WX is symm, and so is S. CHOLESKY!
+  # note that H_l is symmetric, as t(X)WX and S are symm -> CHOLESKY!
   A <- chol(H_l)
   ATI <- forwardsolve(t(A), diag(rep(1, 80)))
   Hl_inv <- backsolve(A, ATI)
-  sum(diag(Hl_inv%*%H0))
+  sum(diag(Hl_inv %*% H0))
 }
 
+
+# find_lambda_opt() finds lambda that minimizes the BIC
+# --- BIC = 2*PNLL + log(n)*EDF
+# * test_range = range of lambdas to look over for a minimizer
+# * par = set of gamma parameters to obtain gamma MLEs
+# * pnll = PNLL evaluating function
+# * d_nll = derivative of PNLL evaluating function
+# * y, X, S defined as before
+find_lambda_opt <- function(test_range, par, pnll, d_nll, y, X, S) {
+  
+  # initialize list of BIC values
+  BIC <- rep(0, length(test_range))
+  i <- 1
+  # calculate BIC for each potential lambda in range
+  for (lambda in test_range) {
+  
+    # compute the gamma MLE -> beta -> mu for that lambda
+    g_mle <- optim(par = par, fn = pnll, gr = d_nll, 
+                   y = y, X = X, lambda = lambda, S = S, method = 'BFGS')
+    b_hat <- exp(g_mle$par)
+    mu_hat <- X %*% b_hat
+  
+    # compute H matrices
+    # -- fitted values mu_hat are under penalty par. lambda, even for H0
+    Hl <- H(lambda, X, mu_hat, S, y)
+    H0 <- H(0, X, mu_hat, S, y)
+  
+    # compute BIC
+    # -- pnll has penalty zero here
+    # -- higher EDF will be a penalty
+    BIC[i] <- 2*pnll(g_mle$par, y,X, 0, S) + log(length(y))*EDF(H0, Hl)
+  
+    i <- i+1
+  }
+  
+  # find the lambda that minimizes the BIC
+  lambda_opt_index <- BIC == min(BIC)
+  lambda_opt <- test_range[lambda_opt_index]
+  
+  # output
+  lambda_opt
+}
+
+# search over log(lambda) values
 test_range <- exp(seq(-13,-7,length=50))
-BIC <- rep(0, 50)
-i<-1
-for (lambda in test_range){
-  
-  # compute the estimator of gamma, thus beta, thus mu for that lambda
-  g_mle <- optim(par=rep(0,80), fn=pnll, gr=d_nll, y=y, X=X, 
-                 lambda=lambda, S=S, method='BFGS')
-  b_hat <- exp(g_mle$par)
-  mu_hat <- X %*% b_hat
-  
-  ## Computing the H matrices
-  # The fitted values mu_hat are under penalty par. lambda, even for H0
-  Hl <- H(lambda, X, mu_hat, S, y)
-  H0 <- H(0, X, mu_hat, S, y)
-  
-  
-  # Compute its BIC score
-  # pnll has penalty zero here
-  BIC[i] <- 2*pnll(g_mle$par, y,X, 0, S) + log(length(y))*EDF(H0, Hl)
-  
-  # we'll want to add this to some vector
-  # we'll want to minimise BIC - ie higher EDF will be a penalty
-  
-  print(i)
-  i <- i+1
-}
-
-plot(log(test_range), BIC, xlab="log(lambda)")
-bi <- which(BIC==min(BIC))
-lambda_opt <- test_range[bi]
+# get the optimal lambda over this range
+lambda_opt <- find_lambda_opt(test_range, par = rep(0, 80), pnll, d_nll, y, X, S)
 
 lambda_opt
-# note: this is larger than the initial guess of 5*10^-5, suggesting
-# I might have been right to say I thought the wiggly f meant we 
-# needed a bigger penalty
 
-# we do still get a wiggly f here tho so not sure whats going on there. It is
-# mildly less wiggly than initial guess 
+# note: this is larger than the initial guess of 5*10^-5, validating claim in 
+# sanity check that we needed a bigger penalty
+
 
 
 #################################################################
