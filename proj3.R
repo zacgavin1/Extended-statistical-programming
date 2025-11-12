@@ -115,15 +115,17 @@ pnll <- function(gamma, y, X, lambda, S, w=rep(1,150)){
 # test
 pnll(rep(0, 80), y, X, lambda, S)
 
-d_nll <- function(gamma, y, X, lambda, S, w=rep(1,150)){
+d_nll <- function(gamma, y, X, lambda, S, w = rep(1, 150)) {
   beta <- exp(gamma)
   mu <- X %*% beta
+
   d_likelihood <- beta * t(y*w/mu - w) %*% X
   d_penalty <- lambda * diag(beta) %*% S %*% beta
   deriv <- -t(d_likelihood) + d_penalty
   deriv
 }
   
+
 
 
 #y <- data$nhs
