@@ -391,8 +391,12 @@ lambda_opt <- find_lambda_opt(test_range,
                               y, X, S)
 
 # finding the actual prediction using the actual data, lambda=lambda_opt
-g_mle <- optim(par=rep(0,80), fn=pnll, gr = d_nll,  y=y, X=X, 
-               lambda=lambda_opt, S=S, method='BFGS')
+#g_mle <- optim(par=rep(0,80), fn=pnll, gr = d_nll,  y=y, X=X, 
+#               lambda=lambda_opt, S=S, method='BFGS')
+
+g_mle <- optim(par = g_mle_sanity$par, fn = pnll, gr = d_nll,
+                   y = y, X = X, lambda = lambda_opt, S = S,
+                   method = 'BFGS')
 b_hat <- exp(g_mle$par)
 mu <- X %*% b_hat
 f <- X_tilde %*% b_hat
@@ -400,13 +404,18 @@ f <- X_tilde %*% b_hat
 # n = amount of day-death pairs to sample
 # nrep = amount of confidence limits to produce
 n <- length(y); n_rep <- 200
+#conf_lims <- bootstrap_conf_lim(n, n_rep, 
+#                                param = rep(0, 80), pnll, d_nll,
+#                                y, X, lambda = lambda_opt, S, 
+#                                X_tilde)
+
 conf_lims <- bootstrap_conf_lim(n, n_rep, 
-                                param = rep(0, 80), pnll, d_nll,
+                                param = g_mle$par, pnll, d_nll,
                                 y, X, lambda = lambda_opt, S, 
                                 X_tilde)
 
 
-CI_dt <- data.frame(lower = CI[1,], upper = CI[2,])
+CI_dt <- data.frame(lower = conf_lims[1,], upper = conf_lims[2,])
 
 data |> ggplot(aes(x = julian, y = nhs)) +
   geom_point() + 
