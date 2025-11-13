@@ -7,11 +7,11 @@
 # curve segments) and a smoothing penalty (to avoid overfitting the variation).
 # After choosing an appropriate smoothing parameter for the fit (based on the BIC 
 # criterion), we assess the uncertainty of the fit through non-parametric bootstrap 
-# confidence intervals. Finally, we visualize our findings in a plot.
+# confidence limits. Finally, we visualize our findings in a plot.
 
 
 library(splines) # splineDesign()
-library(numDeriv) # grad() (finite differencing)
+library(numDeriv) # grad() (finite differencing) ### comment out this and deriv check
 library(ggplot2) # visuals
 
 
@@ -263,17 +263,17 @@ EDF <- function(H0, H_l){
 # * pnll = PNLL evaluating function
 # * d_nll = derivative of PNLL evaluating function
 # * y, X, S defined as before
-find_lambda_opt <- function(test_range, par, pnll, d_nll, y, X, S) {
+find_lambda_opt <- function(test_range, param, pnll, d_nll, y, X, S) {
   
-  # initialize list of BIC values
+  # initialize vector of BIC values
   BIC <- rep(0, length(test_range))
   converges <- c()
   i <- 1
-  # calculate BIC for each potential lambda in range
+  # calculate BIC for each potential lambda in test range
   for (lambda in test_range) {
   
     # compute the gamma MLE -> beta -> mu for that lambda
-    g_mle <- optim(par = par, fn = pnll, gr = d_nll, 
+    g_mle <- optim(par = param, fn = pnll, gr = d_nll, 
                    y = y, X = X, lambda = lambda, S = S, method = 'BFGS')#,
                    #control = list(abstol = 1e-30, maxit = 100000))
     converges <- append(converges, g_mle$convergence)
@@ -288,7 +288,7 @@ find_lambda_opt <- function(test_range, par, pnll, d_nll, y, X, S) {
     # compute BIC
     # -- pnll has penalty zero here
     # -- higher EDF will be a penalty
-    BIC[i] <- 2*pnll(g_mle$par, y,X, 0, S) + log(length(y))*EDF(H0, Hl)
+    BIC[i] <- 2*pnll(g_mle$par, y, X, 0, S) + log(length(y))*EDF(H0, Hl)
   
     i <- i+1
   }
@@ -297,7 +297,7 @@ find_lambda_opt <- function(test_range, par, pnll, d_nll, y, X, S) {
   lambda_opt_index <- BIC == min(BIC)
   lambda_opt <- test_range[lambda_opt_index]
   
-  plot(test_range, BIC, type = 'l')
+  plot(test_range, BIC)
   
   print(converges)
   
@@ -308,7 +308,7 @@ find_lambda_opt <- function(test_range, par, pnll, d_nll, y, X, S) {
 # search over log(lambda) values
 test_range <- exp(seq(-13,-7,length=50))
 # get the optimal lambda over this range
-lambda_opt <- find_lambda_opt(test_range, par = g_mle_sanity$par, pnll, d_nll, y, X, S)
+lambda_opt <- find_lambda_opt(test_range, param = g_mle_sanity$par, pnll, d_nll, y, X, S)
 
 lambda_opt
 
@@ -321,45 +321,49 @@ lambda_opt
 ####### ---------- ASSESSING MODEL UNCERTAINTY ---------- #######
 #################################################################
 
+# We now assess the model uncertainty using non-parametric bootstrapping. We
+# resample n (original sample size) day-death pairs from the original data (with
+# replacement) and refit the model to this sampled data. 
 
-#### ------ Question 5 ------ ####
-
+# amount of day-death pairs to sample
 n <- length(y)
-
+# amount of confidence limits to produce
 n_rep <- 200
-g_mle <- matrix(0, n_rep, 80)
-for (i in 1:n_rep){
-  wb <- tabulate(sample(n,replace=TRUE), n)
+
+# resampling the data is equivalent to re-weighting the terms in log-likelihood
+# by the number of times the day-death pairs are resampled
+# -- sum(w*log-likelihood), w = 0, 1, ... (number of corresponding resamples)
+bootstrap_conf_lim <- function(n, n_rep, 
+                               param, pnll, d_nll, y, X, lambda, S, 
+                               X_tilde) {
+  wb <- matrix(0, n, n_rep)
+  for (i in 1:n_rep) {
+    # make new dataset by resampling the day-death pairs and count how many times
+    # each pair is resampled
+    wb[, i] <- tabulate(sample(n, replace = TRUE), n)
+  }
+
+  # get the optimal gammas for each resampled dataset
+  g_mle <- apply(wb, MARGIN = 2, FUN = function (wb) {
+    min <- optim(par = param, fn = pnll, gr = d_nll,
+                 y = y, X = X, lambda = lambda, S = S, w = wb,
+                 method = 'BFGS')
+    min$par
+    }
+  )
+
+  # calculate bootstrapped beta_hats, fitted infection curves, and 95% confidence 
+  # limits for the daily new infections
+  beta_boot <- exp(g_mle)
+  f_boot <- X_tilde %*% beta_boot
+  CI <- apply(f_boot, MARGIN = 1, FUN = quantile, probs = c(0.025, 0.975))
   
-  # calculate the sample mle
-  min <- optim(par=rep(0,80), fn=pnll, gr=d_nll,  y=y, X=X, 
-                 lambda=lambda_opt, S=S, w=wb, method='BFGS')
-  g_mle[i,] <- min$par
-  #print(i)
+  CI
 }
 
-beta_boot <- exp(g_mle)
-f_boot <- X_tilde %*% t(beta_boot)
-
-CI <- apply(f_boot, MARGIN=1, FUN=quantile, probs=c(0.025, 0.975))
-
-
-#potential optimization suggestion?
-wb <- matrix(0, n, n_rep)
-for (i in 1:n_rep){
-   wb[, i] <- tabulate(sample(n, replace = TRUE), n)
-}
- 
-g_mle <- apply(wb, MARGIN = 2, FUN = function (wb) {
-  min <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
-                y = y, X = X, lambda = lambda_opt, S = S, w = wb,
-                method = 'BFGS')
-  min$par
-})
- 
-beta_boot <- exp(g_mle)
-f_boot <- X_tilde %*% beta_boot
-CI <- apply(f_boot, MARGIN = 1, FUN = quantile, probs = c(0.025, 0.975))
+conf_lims <- bootstrap_conf_lim(n, n_rep, 
+                                param = rep(0, 80), pnll, d_nll, y, X, lambda = lambda_opt, S, 
+                                X_tilde)
 
 
 
@@ -371,12 +375,35 @@ CI <- apply(f_boot, MARGIN = 1, FUN = quantile, probs = c(0.025, 0.975))
 ##### ---- Question 6 ---- #######
 # Now plot all this information on a graph
 
+# t = start and end days of the data; K = number of basis functions
+t <- c(min(data$julian), max(data$julian)); K <- 80
+# X_tilde, X, S, pd
+out <- modelling(t, K)
+X_tilde <- out$X_tilde; X <- out$X; S <- out$S; pd <- out$pd
+# deaths
+y <- data$nhs
+
+# search over log(lambda) values
+test_range <- exp(seq(-13,-7,length=50))
+# get the optimal lambda over this range
+lambda_opt <- find_lambda_opt(test_range, 
+                              par = g_mle_sanity$par, pnll, d_nll, 
+                              y, X, S)
+
 # finding the actual prediction using the actual data, lambda=lambda_opt
 g_mle <- optim(par=rep(0,80), fn=pnll, gr = d_nll,  y=y, X=X, 
                lambda=lambda_opt, S=S, method='BFGS')
 b_hat <- exp(g_mle$par)
 mu <- X %*% b_hat
 f <- X_tilde %*% b_hat
+
+# n = amount of day-death pairs to sample
+# nrep = amount of confidence limits to produce
+n <- length(y); n_rep <- 200
+conf_lims <- bootstrap_conf_lim(n, n_rep, 
+                                param = rep(0, 80), pnll, d_nll,
+                                y, X, lambda = lambda_opt, S, 
+                                X_tilde)
 
 
 CI_dt <- data.frame(lower = CI[1,], upper = CI[2,])
