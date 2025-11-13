@@ -1,3 +1,4 @@
+system.time({
 # Zachary Gavin (s2222962): Wrote Q2,3,4,5, debugging and commenting
 # Shaehroz Khalid (s2869421): Wrote Q1, debugging and commenting
 # Brandon Causing (s2901457): Wrote Q6, debugging, commenting, optimisation and reorganising 
@@ -18,13 +19,13 @@
 # criterion), we assess the uncertainty of the fit through non-parametric bootstrap 
 # confidence limits. Finally, we visualize our findings in a plot.
 
-# Checks for 
+# Tests have been left in for easier future checking
 
 
 library(splines) # splineDesign()
 library(ggplot2) # visuals
 
-
+# "engcov.txt" contains covid death information
 data <- read.table("engcov.txt", header=T, stringsAsFactor=T)
 
 
@@ -433,5 +434,5 @@ data |> ggplot(aes(x = julian, y = nhs)) +
   
 
 
-
+})
 
