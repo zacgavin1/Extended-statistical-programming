@@ -125,7 +125,7 @@ pnll <- function(gamma, y, X, lambda, S, w = rep(1, 150)) {
 # d_nll() returns gradient of penalized negative log-likelihood w.r.t. gamma
 # * gamma, y, X, lambda, S, w defined as before in pnll()
 d_nll <- function(gamma, y, X, lambda, S, w = rep(1, 150)) {
-  
+
   # beta = exp(gamma); mu = X*beta (as in pnll())
   beta <- exp(gamma)
   mu <- X %*% beta
@@ -167,26 +167,14 @@ g_mle_test <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
                     y = y, X = X, lambda = lambda_test, S = S, 
                     method = 'BFGS', control = list(maxit = 5000))
 
-# approximate gradient of PNLL
+# approximate gradient of PNLL 
 num_deriv <- grad(function(g) pnll(g, y, X, lambda_test, S), g_mle_test$par)
 # exact gradient of PNLL
 anal_deriv <- d_nll(g_mle_test$par, y, X, lambda_test, S)
 
-# gamma0 <- rep(0, 80)
-# num_deriv <- numeric(80)
-# eps <- 5e-07
-# for (i in 1:length(gamma0)) {
-#   gamma1 <- gamma0
-#   gamma1[i] <- gamma0[i] + eps
-#   pen_nll0 <- pnll(gamma0, y, X, lambda_test, S)
-#   pen_nll1 <- pnll(gamma1, y, X, lambda_test, S)
-#   num_deriv[i] <- (pen_nll1 - pen_nll0)/eps
-# }
-
-
 # find the most that the resulting gradients differ from each other
-max(abs(num_deriv - anal_deriv)) # very small ~ 10^-5, so should be correct 
-
+abs_diff <- abs(num_deriv - anal_deriv) # very small ~ 10^-5, so should be correct 
+rel_diff <- abs_diff / pmax(1e-12, abs(num_deriv), abs(anal_deriv))
 
 ######## -------- Preliminary Sanity Check -------- #########
 
@@ -195,11 +183,11 @@ max(abs(num_deriv - anal_deriv)) # very small ~ 10^-5, so should be correct
 # as well as the fitted infection curve, f.
 
 # for sanity check
-lambda_sanity <- 5e-05
+lambda_sanity <- 5*10^-5
 # find minimizing gammas for PNLL based on sanity check lambda
 g_mle_sanity <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
                       y = y, X = X, lambda = lambda_sanity, S = S,
-                      method = 'BFGS',  control = list(maxit = 5000))
+                      method = 'BFGS',  control = list(maxit = 100))
 
 
 # estimate beta, mu, and f (= X_tilde*beta) from gamma MLE
@@ -235,8 +223,8 @@ data |> ggplot(aes(x = julian, y = nhs)) +
 ###### ---------- CHOICE OF SMOOTHING PARAMETER ---------- ######
 #################################################################
 
-# We now want to choose an appropriate smoothing parameter, lambda. This will
-# be chosen to minimize the BIC.
+# Find smoothing parameter lambda which after fitting gives the 
+# optimal Bayesian Information Criterion (BIC)
  
 # calculate H_lambda, the Hessian w.r.t. beta of NLL at beta_hat + lambda*S
 # --- H_lambda = X^T*W*X + lambda*S, where W = diag(y/mu_hat^2)
@@ -246,9 +234,10 @@ H <- function(lambda, X, mu_hat, S, y){
 }
 
 # calculate effective degrees of freedom (EDF)
-# --- EDF = tr(H_lambda^-1)
+# --- EDF = tr(H_lambda^-1 %*% H_0)
 EDF <- function(H0, H_l){
-  # note that H_l is symmetric, as t(X)WX and S are symm -> CHOLESKY!
+  
+  # H_l is symm and pos def., as t(X)WX and S are symm and pos def.
   A <- chol(H_l)
   ATI <- forwardsolve(t(A), diag(rep(1, 80)))
   Hl_inv <- backsolve(A, ATI)
@@ -347,7 +336,7 @@ bootstrap_conf_lim <- function(n, n_rep,
   g_mle <- apply(wb, MARGIN = 2, FUN = function (wb) {
     min <- optim(par = param, fn = pnll, gr = d_nll,
                  y = y, X = X, lambda = lambda, S = S, w = wb,
-                 method = 'BFGS')
+                 method = 'BFGS', control=list(1000))
     min$par
     }
   )
@@ -391,7 +380,7 @@ lambda_opt <- find_lambda_opt(test_range,
                               y, X, S)
 
 # finding the actual prediction using the actual data, lambda=lambda_opt
-g_mle <- optim(par=rep(0,80), fn=pnll, gr = d_nll,  y=y, X=X, 
+g_mle <- optim(par=g_mle_sanity$par, fn=pnll, gr = d_nll,  y=y, X=X, 
                lambda=lambda_opt, S=S, method='BFGS')
 b_hat <- exp(g_mle$par)
 mu <- X %*% b_hat
@@ -401,7 +390,7 @@ f <- X_tilde %*% b_hat
 # nrep = amount of confidence limits to produce
 n <- length(y); n_rep <- 200
 conf_lims <- bootstrap_conf_lim(n, n_rep, 
-                                param = rep(0, 80), pnll, d_nll,
+                                param = g_mle_sanity$par, pnll, d_nll,
                                 y, X, lambda = lambda_opt, S, 
                                 X_tilde)
 
@@ -425,6 +414,7 @@ data |> ggplot(aes(x = julian, y = nhs)) +
         legend.box.background = element_rect(color = 'black'),
         plot.title = element_text(face = "bold", size = 15))
   
+
 
 
 
