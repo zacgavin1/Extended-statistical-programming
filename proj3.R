@@ -387,7 +387,7 @@ y <- data$nhs
 test_range <- exp(seq(-13,-7,length=50))
 # get the optimal lambda over this range
 lambda_opt <- find_lambda_opt(test_range, 
-                              par = g_mle_sanity$par, pnll, d_nll, 
+                              param = g_mle_sanity$par, pnll, d_nll, 
                               y, X, S)
 
 # finding the actual prediction using the actual data, lambda=lambda_opt
