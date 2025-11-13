@@ -439,8 +439,8 @@ data |> ggplot(aes(x = julian, y = nhs)) +
        title = "Daily Infections and Deaths from COVID-19", 
        color = NULL, fill = NULL) +
   scale_color_manual(values = c('Observed Deaths' = 'black', 
-                                'Fitted Deaths' = 'blue', 
-                                'Estimated New Infections' = 'red'),
+                                'Fitted Deaths' = 'red', 
+                                'Estimated New Infections' = 'blue'),
                      breaks = c('Observed Deaths',
                                 'Fitted Deaths',
                                 'Estimated New Infections')) +
