@@ -1,6 +1,6 @@
-# Zachary Gavin (s2222962): Wrote Q2,3,4,5, debugging and commenting
+# Zachary Gavin (s2222962): Wrote Q2, Q3, Q4, Q5, debugging and commenting
 # Shaehroz Khalid (s2869421): Wrote Q1, debugging and commenting
-# Brandon Causing (s2901457): Wrote Q6, debugging, commenting, optimisation and reorganising 
+# Brandon Causing (s2901457): Wrote Q6, debugging, commenting, optimisation and reorganisation
 # division of work was close to 1/3 each
 
 # github: https://github.com/zacgavin1/Extended-statistical-programming.git
@@ -18,13 +18,14 @@
 # criterion), we assess the uncertainty of the fit through non-parametric bootstrap 
 # confidence limits. Finally, we visualize our findings in a plot.
 
-# Checks for 
-
 
 library(splines) # splineDesign()
 library(ggplot2) # visuals
 
+# Tests have been left in (but commented out) for future debugging
+# maxit has been chosen for each optim individually to ensure convergence
 
+# "engcov.txt" contains covid death information
 data <- read.table("engcov.txt", header=T, stringsAsFactor=T)
 
 
@@ -34,7 +35,7 @@ data <- read.table("engcov.txt", header=T, stringsAsFactor=T)
 
 # We first want to build the matrices that will be used for fitting the model.
 # In particular, these are:
-# * X_tilde - the B-spline basis for the infections,
+# * X_tilde - the B-spline basis matrix for the infections,
 # * X - the model matrix for the deaths, and
 # * S - the penalty matrix
 
@@ -45,7 +46,7 @@ data <- read.table("engcov.txt", header=T, stringsAsFactor=T)
 # distribution)
 modelling <- function(t, K) {
   
-  ## --- X_tilde --- ##
+  ## --- X_tilde (180x80) --- ##
   # first and last day
   range_t <- range(t)
   # evenly spaced time intervals (knots) starting 30 days before first death
@@ -61,19 +62,24 @@ modelling <- function(t, K) {
   # spline basis matrix (rows = days, columns = spline basis functions)
   X_tilde <- splineDesign(all_knots, (min(t)-30):max(t) , ord = 4)
   
-  ##### should this part be outside of the function and be an input?
+  # given an infection leads to a death, pd is the pmf of the no. of 
+  # days between infection and death (from scientific evidence)
   d <- 1:80; edur <- 3.151; sdur <- .469
   pd <- dlnorm(d, edur, sdur); pd <- pd / sum(pd)
   
   
-  ## --- X --- ##
+  ## --- X (150x80)--- ##
   
-  # note: the last column of X_tilde does not affect X. That is because the 
+  # X is designed to find the number of people who will die on day i by
+  # finding the number of people infected on day (i-j), multiplied by the 
+  # prob. it takes them j days to die, and summing over j.
+  
+  # It 'looks back' 80 days, unless this is more than 30 days before death 
+  # records begin in which case it 'looks back' to 30 days before records begin
+  
+  # the last column of X_tilde does not affect X. That is because the 
   # new infections on the last day do not affect the deaths on the last day
   # (the model assumes you cannot die of the disease on the same day as infection)
-  
-  # rows of X give the effect of each spline on that fitted value
-  # columns give the effect that spline has on each fitted value
   
   X <- matrix(0, max(t) - min(t) + 1, K)
   # X_i = sum (from j = 1 to min(29 + i, 80)) X_tilde_{30 + i - j} * pd(j)
@@ -185,6 +191,8 @@ d_nll <- function(gamma, y, X, lambda, S, w = rep(1, 150)) {
 # abs_diff <- abs(num_deriv - anal_deriv) # very small ~ 10^-5, so should be correct
 # rel_diff <- abs_diff / pmax(1e-12, abs(num_deriv), abs(anal_deriv))
 
+
+
 ######## -------- Preliminary Sanity Check -------- #########
 
 # Before proceeding, and as part of finding sane starting values for gamma, we
@@ -204,6 +212,7 @@ y <- data$nhs
 # for sanity check
 lambda_sanity <- 5*10^-5
 # find minimizing gammas for PNLL based on sanity check lambda
+# larger than usual maxit included to ensure convergence
 g_mle_sanity <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
                       y = y, X = X, lambda = lambda_sanity, S = S,
                       method = 'BFGS',  control = list(maxit = 1000))
@@ -231,7 +240,6 @@ data |> ggplot(aes(x = julian, y = nhs)) +
         legend.background = element_blank(),
         legend.box.background = element_rect(color = 'black'))
 
-# Remarks: this has now passed the sanity check
 # -- f is very 'wiggly'; a stronger penalty is likely required
 
 
@@ -265,7 +273,11 @@ EDF <- function(H0, H_l){
 # find_lambda_opt() finds lambda that minimizes the BIC
 # --- BIC = 2*PNLL + log(n)*EDF
 # * test_range = range of lambdas to look over for a minimizer
+<<<<<<< HEAD
 # * param = set of gamma parameters to obtain gamma MLEs
+=======
+# * param = starting gamma value for optim 
+>>>>>>> 6459a28572f49ca066625fd2ffa7adc2bd0caac2
 # * pnll = PNLL evaluating function
 # * d_nll = derivative of PNLL evaluating function
 # * y, X, S defined as before
@@ -280,7 +292,8 @@ find_lambda_opt <- function(test_range, param, pnll, d_nll, y, X, S) {
   
     # compute the gamma MLE -> beta -> mu for that lambda
     g_mle <- optim(par = param, fn = pnll, gr = d_nll, 
-                   y = y, X = X, lambda = lambda, S = S, method = 'BFGS')
+                   y = y, X = X, lambda = lambda, S = S, method = 'BFGS',
+                   control=list(reltol=10^-10)) # to make BIC vs lambda plot smooth
     
     # converges <- append(converges, g_mle$convergence) 
     b_hat <- exp(g_mle$par)
@@ -292,7 +305,7 @@ find_lambda_opt <- function(test_range, param, pnll, d_nll, y, X, S) {
     H0 <- H(0, X, mu_hat, S, y)
   
     # compute BIC
-    # -- pnll has penalty zero here
+    # -- pnll has penalty zero here (to get the pure log-likelihood)
     # -- higher EDF will be a penalty
     BIC[i] <- 2*pnll(g_mle$par, y, X, 0, S) + log(length(y))*EDF(H0, Hl)
   
@@ -321,6 +334,7 @@ find_lambda_opt <- function(test_range, param, pnll, d_nll, y, X, S) {
 # resample n (original sample size) day-death pairs from the original data (with
 # replacement) and refit the model to this sampled data. 
 
+<<<<<<< HEAD
 # Resampling the data is equivalent to re-weighting the terms in log-likelihood
 # by the number of times the day-death pairs are resampled.
 # -- sum(w*log-likelihood), w = 0, 1, ... (number of corresponding resamples)
@@ -329,13 +343,21 @@ find_lambda_opt <- function(test_range, param, pnll, d_nll, y, X, S) {
 # * n = amount of day-death pairs to sample
 # * nrep = amount of confidence limits to produce
 # * param, pnll, d_nll, y, X, lambda, S, X_tilde defined as before
+=======
+
+# resampling the data is equivalent to re-weighting the terms in log-likelihood
+# by the number of times the day-death pairs are resampled
+# -- sum(w[i]*log-lik[i]), length(w)=150, w[i] = 0, 1, ... (number of times i resampled)
+
+# n=length(y); n_rep = number of bootstrap samples; param = starting gamma for optim
+>>>>>>> 6459a28572f49ca066625fd2ffa7adc2bd0caac2
 bootstrap_conf_lim <- function(n, n_rep, 
                                param, pnll, d_nll, y, X, lambda, S, 
                                X_tilde) {
-  wb <- matrix(0, n, n_rep)
+  
+  wb <- matrix(0, n, n_rep) 
   for (i in 1:n_rep) {
-    # make new dataset by resampling the day-death pairs and count how many times
-    # each pair is resampled
+    # resample the day-death pairs and count how many times each pair is resampled
     wb[, i] <- tabulate(sample(n, replace = TRUE), n)
   }
 
@@ -366,9 +388,13 @@ bootstrap_conf_lim <- function(n, n_rep,
 ######## ---------- VISUALIZING THE MODEL FIT ---------- ########
 #################################################################
 
+<<<<<<< HEAD
 # Now call all functions to produce a plot of this information on a graph.
 
 ### --- 1. Set-Up --- ###
+=======
+# Now call all functions to produce a plot of the information 
+>>>>>>> 6459a28572f49ca066625fd2ffa7adc2bd0caac2
 
 # t = start and end days of the data; K = number of basis functions
 t <- c(min(data$julian), max(data$julian)); K <- 80
@@ -378,9 +404,14 @@ X_tilde <- out$X_tilde; X <- out$X; S <- out$S; pd <- out$pd
 # deaths
 y <- data$nhs
 
+<<<<<<< HEAD
 ### --- 2. Starting Parameters --- ###
 
 # recalculating the MLE for the sanity check case, for use in find_lambda_opt()
+=======
+# Recalculating the mle for the sanity check case, for use as optim starting value
+# in find_lambda_opt
+>>>>>>> 6459a28572f49ca066625fd2ffa7adc2bd0caac2
 lambda_sanity <- 5*10^-5
 g_mle_sanity <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
                       y = y, X = X, lambda = lambda_sanity, S = S,
@@ -406,28 +437,43 @@ b_hat <- exp(g_mle$par)
 mu <- X %*% b_hat
 f <- X_tilde %*% b_hat
 
+<<<<<<< HEAD
 ### --- 5. Assess Uncertainty --- ###
 
+=======
+# Finding the confidence bounds
+>>>>>>> 6459a28572f49ca066625fd2ffa7adc2bd0caac2
 # n = amount of day-death pairs to sample
-# nrep = amount of confidence limits to produce
+# nrep = number of confidence limits to produce
 n <- length(y); n_rep <- 200
 conf_lims <- bootstrap_conf_lim(n, n_rep, 
                                 param = g_mle$par, pnll, d_nll,
                                 y, X, lambda = lambda_opt, S, 
                                 X_tilde)
 
+<<<<<<< HEAD
 ### --- 6. Visualize the Results --- ###
 
 # make confidence limits and time range into data frames for ggplot use
+=======
+# getting data into right form for ggplot
+>>>>>>> 6459a28572f49ca066625fd2ffa7adc2bd0caac2
 CI_dt <- data.frame(lower = conf_lims[1,], upper = conf_lims[2,])
 range_dt <- data.frame(range = (min(data$julian) - 30):max(data$julian))
 
 # plotting
 data |> ggplot(aes(x = julian, y = nhs)) +
+<<<<<<< HEAD
   geom_point() + # actual deaths
   geom_line(data = data, aes(x = julian, y = mu, color = 'blue')) + # death fit
   geom_line(data = range_dt, aes(x = range, y = f, color = 'red')) + # infect fit
   geom_ribbon(data = range_dt, aes(x = range, y = f,
+=======
+  geom_point() + 
+  geom_line(data = data, aes(x = julian, y = mu, color = 'blue')) +
+  geom_line(data = range_dt, aes(x = range, y = f, color = 'red')) +
+  geom_ribbon(data = range_dt, aes(x = range, y = f, 
+>>>>>>> 6459a28572f49ca066625fd2ffa7adc2bd0caac2
                                    ymin = CI_dt$lower, ymax = CI_dt$upper), 
               alpha = 0.2) + # conf limits
   theme_bw() + 
