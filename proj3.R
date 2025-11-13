@@ -187,7 +187,7 @@ lambda_sanity <- 5*10^-5
 # find minimizing gammas for PNLL based on sanity check lambda
 g_mle_sanity <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
                       y = y, X = X, lambda = lambda_sanity, S = S,
-                      method = 'BFGS',  control = list(maxit = 100))
+                      method = 'BFGS',  control = list(maxit = 10000))
 
 
 # estimate beta, mu, and f (= X_tilde*beta) from gamma MLE
@@ -380,12 +380,15 @@ lambda_opt <- find_lambda_opt(test_range,
                               y, X, S)
 
 # finding the actual prediction using the actual data, lambda=lambda_opt
+
+
 #g_mle <- optim(par=rep(0,80), fn=pnll, gr = d_nll,  y=y, X=X, 
 #               lambda=lambda_opt, S=S, method='BFGS')
 
 g_mle <- optim(par = g_mle_sanity$par, fn = pnll, gr = d_nll,
                    y = y, X = X, lambda = lambda_opt, S = S,
                    method = 'BFGS')
+
 b_hat <- exp(g_mle$par)
 mu <- X %*% b_hat
 f <- X_tilde %*% b_hat
