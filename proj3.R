@@ -1,6 +1,6 @@
-# Zachary Gavin (s2222962): 
-# Shaehroz Khalid (s2869421): 
-# Brandon Causing (s2901457): 
+# Zachary Gavin (s2222962): Wrote Q2,3,4,5, debugging and commenting
+# Shaehroz Khalid (s2869421): Wrote Q1, debugging and commenting
+# Brandon Causing (s2901457): Wrote Q6, debugging, commenting, optimisation and reorganising 
 # division of work was close to 1/3 each
 
 # github: https://github.com/zacgavin1/Extended-statistical-programming.git
@@ -18,9 +18,10 @@
 # criterion), we assess the uncertainty of the fit through non-parametric bootstrap 
 # confidence limits. Finally, we visualize our findings in a plot.
 
+# Checks for 
+
 
 library(splines) # splineDesign()
-
 library(ggplot2) # visuals
 
 
@@ -97,7 +98,7 @@ modelling <- function(t, K) {
 
 
 #################################################################
-######### ---------- SMOOTHING PENALIZATION ---------- ##########
+######### ----------- SMOOTHING PENALIZATION --------- ##########
 #################################################################
 
 # We now want to be able to evaluate the penalized negative log-likelihood and
@@ -192,47 +193,47 @@ d_nll <- function(gamma, y, X, lambda, S, w = rep(1, 150)) {
 # fit the model using lambda = 5 * 10^-5 and plot the actual and fitted deaths,
 # as well as the fitted infection curve, f.
 
-# # start and end days of the data
-# t <- c(min(data$julian), max(data$julian))
-# # number of basis functions
-# K <- 80
-# # X_tilde, X, S, pd
-# out <- modelling(t, K)
-# X_tilde <- out$X_tilde; X <- out$X; S <- out$S; pd <- out$pd
-# # deaths
-# y <- data$nhs
-# 
-# # for sanity check
-# lambda_sanity <- 5*10^-5
-# # find minimizing gammas for PNLL based on sanity check lambda
-# g_mle_sanity <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
-#                       y = y, X = X, lambda = lambda_sanity, S = S,
-#                       method = 'BFGS',  control = list(maxit = 1000))
-# 
-# 
-# # estimate beta, mu, and f (= X_tilde*beta) from gamma MLE
-# b_hat_sanity <- exp(g_mle_sanity$par)
-# mu_sanity <- X %*% b_hat_sanity       
-# f_sanity <- X_tilde %*% b_hat_sanity
+# start and end days of the data
+t <- c(min(data$julian), max(data$julian))
+# number of basis functions
+K <- 80
+# X_tilde, X, S, pd
+out <- modelling(t, K)
+X_tilde <- out$X_tilde; X <- out$X; S <- out$S; pd <- out$pd
+# deaths
+y <- data$nhs
+
+# for sanity check
+lambda_sanity <- 5*10^-5
+# find minimizing gammas for PNLL based on sanity check lambda
+g_mle_sanity <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
+                      y = y, X = X, lambda = lambda_sanity, S = S,
+                      method = 'BFGS',  control = list(maxit = 1000))
+
+
+# estimate beta, mu, and f (= X_tilde*beta) from gamma MLE
+b_hat_sanity <- exp(g_mle_sanity$par)
+mu_sanity <- X %*% b_hat_sanity
+f_sanity <- X_tilde %*% b_hat_sanity
 
 
 # turn range of potential infection days into data frame for plotting purposes
-# range_dt <- data.frame(range = (min(data$julian) - 30):max(data$julian))
-# 
-# # plot the sanity check fitted deaths and fitted infections
-# data |> ggplot(aes(x = julian, y = nhs)) + 
-#   geom_point() + # actual deaths
-#   geom_line(aes(x = julian, y = mu_sanity, color = 'blue')) + # fitted deaths
-#   geom_line(data = range_dt, aes(x = range, y = f_sanity, color = 'red')) + # fitted infs
-#   theme_bw() + 
-#   scale_color_discrete(labels = c("Fitted Deaths", "Estimated New Infections")) +
-#   labs(title = "Sanity Check", subtitle = "(lambda = 5x10^-5)",
-#        x = "Day of the Year", y = "Counts") +
-#   theme(plot.subtitle = element_text(size = 10),
-#         legend.title = element_blank(),
-#         legend.position = c(0.7, 0.8),
-#         legend.background = element_blank(),
-#         legend.box.background = element_rect(color = 'black'))
+range_dt <- data.frame(range = (min(data$julian) - 30):max(data$julian))
+
+# plot the sanity check fitted deaths and fitted infections
+data |> ggplot(aes(x = julian, y = nhs)) +
+  geom_point() + # actual deaths
+  geom_line(aes(x = julian, y = mu_sanity, color = 'blue')) + # fitted deaths
+  geom_line(data = range_dt, aes(x = range, y = f_sanity, color = 'red')) + # fitted infs
+  theme_bw() +
+  scale_color_discrete(labels = c("Fitted Deaths", "Estimated New Infections")) +
+  labs(title = "Sanity Check", subtitle = "(lambda = 5x10^-5)",
+       x = "Day of the Year", y = "Counts") +
+  theme(plot.subtitle = element_text(size = 10),
+        legend.title = element_blank(),
+        legend.position = c(0.7, 0.8),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(color = 'black'))
 
 # Remarks: this has now passed the sanity check
 # -- f is very 'wiggly'; a stronger penalty is likely required
@@ -276,15 +277,15 @@ find_lambda_opt <- function(test_range, param, pnll, d_nll, y, X, S) {
   
   # initialize vector of BIC values
   BIC <- rep(0, length(test_range))
-  converges <- c()
+  # converges <- c()
   i <- 1
   # calculate BIC for each potential lambda in test range
   for (lambda in test_range) {
   
     # compute the gamma MLE -> beta -> mu for that lambda
     g_mle <- optim(par = param, fn = pnll, gr = d_nll, 
-                   y = y, X = X, lambda = lambda, S = S, method = 'BFGS')#,
-                   #control = list(abstol = 1e-30, maxit = 100000))
+                   y = y, X = X, lambda = lambda, S = S, method = 'BFGS')
+    
     # converges <- append(converges, g_mle$convergence) 
     b_hat <- exp(g_mle$par)
     mu_hat <- X %*% b_hat
@@ -344,7 +345,7 @@ bootstrap_conf_lim <- function(n, n_rep,
   g_mle <- apply(wb, MARGIN = 2, FUN = function (wb) {
     min <- optim(par = param, fn = pnll, gr = d_nll,
                  y = y, X = X, lambda = lambda, S = S, w = wb,
-                 method = 'BFGS', control=list(1000))
+                 method = 'BFGS', control=list(maxit=1000))
     min$par
     }
   )
@@ -404,7 +405,6 @@ f <- X_tilde %*% b_hat
 # n = amount of day-death pairs to sample
 # nrep = amount of confidence limits to produce
 n <- length(y); n_rep <- 200
-
 conf_lims <- bootstrap_conf_lim(n, n_rep, 
                                 param = g_mle$par, pnll, d_nll,
                                 y, X, lambda = lambda_opt, S, 
@@ -412,6 +412,7 @@ conf_lims <- bootstrap_conf_lim(n, n_rep,
 
 
 CI_dt <- data.frame(lower = conf_lims[1,], upper = conf_lims[2,])
+range_dt <- data.frame(range = (min(data$julian) - 30):max(data$julian))
 
 data |> ggplot(aes(x = julian, y = nhs)) +
   geom_point() + 
