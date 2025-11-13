@@ -193,31 +193,6 @@ d_nll <- function(gamma, y, X, lambda, S, w = rep(1, 150)) {
 # fit the model using lambda = 5 * 10^-5 and plot the actual and fitted deaths,
 # as well as the fitted infection curve, f.
 
-<<<<<<< HEAD
-
-# # start and end days of the data
-# t <- c(min(data$julian), max(data$julian))
-# # number of basis functions
-# K <- 80
-# # X_tilde, X, S, pd
-# out <- modelling(t, K)
-# X_tilde <- out$X_tilde; X <- out$X; S <- out$S; pd <- out$pd
-# # deaths
-# y <- data$nhs
-# 
-# # for sanity check
-# lambda_sanity <- 5*10^-5
-# # find minimizing gammas for PNLL based on sanity check lambda
-# g_mle_sanity <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
-#                       y = y, X = X, lambda = lambda_sanity, S = S,
-#                       method = 'BFGS',  control = list(maxit = 1000))
-# 
-# 
-# # estimate beta, mu, and f (= X_tilde*beta) from gamma MLE
-# b_hat_sanity <- exp(g_mle_sanity$par)
-# mu_sanity <- X %*% b_hat_sanity       
-# f_sanity <- X_tilde %*% b_hat_sanity
-=======
 # start and end days of the data
 t <- c(min(data$julian), max(data$julian))
 # number of basis functions
@@ -235,13 +210,10 @@ g_mle_sanity <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
                       y = y, X = X, lambda = lambda_sanity, S = S,
                       method = 'BFGS',  control = list(maxit = 1000))
 
-
 # estimate beta, mu, and f (= X_tilde*beta) from gamma MLE
 b_hat_sanity <- exp(g_mle_sanity$par)
 mu_sanity <- X %*% b_hat_sanity
 f_sanity <- X_tilde %*% b_hat_sanity
->>>>>>> 51b06d53f7451f2bac1e9b77159967b484f23b8b
-
 
 # turn range of potential infection days into data frame for plotting purposes
 range_dt <- data.frame(range = (min(data$julian) - 30):max(data$julian))
@@ -371,11 +343,7 @@ bootstrap_conf_lim <- function(n, n_rep,
   g_mle <- apply(wb, MARGIN = 2, FUN = function (wb) {
     min <- optim(par = param, fn = pnll, gr = d_nll,
                  y = y, X = X, lambda = lambda, S = S, w = wb,
-<<<<<<< HEAD
-                 method = 'BFGS', control=list(maxit = 1000))
-=======
                  method = 'BFGS', control=list(maxit=1000))
->>>>>>> 51b06d53f7451f2bac1e9b77159967b484f23b8b
     min$par
     }
   )
