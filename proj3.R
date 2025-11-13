@@ -380,17 +380,12 @@ lambda_opt <- find_lambda_opt(test_range,
                               y, X, S)
 
 # finding the actual prediction using the actual data, lambda=lambda_opt
-<<<<<<< HEAD
 #g_mle <- optim(par=rep(0,80), fn=pnll, gr = d_nll,  y=y, X=X, 
 #               lambda=lambda_opt, S=S, method='BFGS')
 
 g_mle <- optim(par = g_mle_sanity$par, fn = pnll, gr = d_nll,
                    y = y, X = X, lambda = lambda_opt, S = S,
                    method = 'BFGS')
-=======
-g_mle <- optim(par=g_mle_sanity$par, fn=pnll, gr = d_nll,  y=y, X=X, 
-               lambda=lambda_opt, S=S, method='BFGS')
->>>>>>> 205a6faf3eeb5c7d7daabaefc0f0673c483eb414
 b_hat <- exp(g_mle$par)
 mu <- X %*% b_hat
 f <- X_tilde %*% b_hat
@@ -404,11 +399,7 @@ n <- length(y); n_rep <- 200
 #                                X_tilde)
 
 conf_lims <- bootstrap_conf_lim(n, n_rep, 
-<<<<<<< HEAD
                                 param = g_mle$par, pnll, d_nll,
-=======
-                                param = g_mle_sanity$par, pnll, d_nll,
->>>>>>> 205a6faf3eeb5c7d7daabaefc0f0673c483eb414
                                 y, X, lambda = lambda_opt, S, 
                                 X_tilde)
 
