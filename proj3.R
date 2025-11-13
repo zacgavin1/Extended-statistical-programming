@@ -141,12 +141,10 @@ d_nll <- function(gamma, y, X, lambda, S, w = rep(1, 150)) {
   
   # dNLL/dgamma = diag(y*w/mu - w)*X*diag(beta)
   d_likelihood <- beta * t(y*w/mu - w) %*% X
-  #d_likelihood <- apply(as.vector(y/mu - 1)*t(beta*t(X))*w, 2, sum)
   # dP/dgamma = lambda*diag(beta)*S*beta
   d_penalty <- lambda * diag(beta) %*% S %*% beta
   # dPNLL/dgamma = dNLL/dgamma + dP/dgamma
   deriv <- -t(d_likelihood) + d_penalty
-  #deriv <- -d_likelihood + d_penalty
   
   # return derivative vector
   deriv
@@ -225,7 +223,7 @@ data |> ggplot(aes(x = julian, y = nhs)) +
   geom_line(data = range_dt, aes(x = range, y = f_sanity, color = 'red')) + # fitted infs
   theme_bw() +
   scale_color_discrete(labels = c("Fitted Deaths", "Estimated New Infections")) +
-  labs(title = "Sanity Check", subtitle = "(lambda = 5x10^-5)",
+  labs(title = "Sanity Check", subtitle = "(λ = 5x10^-5)",
        x = "Day of the Year", y = "Counts") +
   theme(plot.subtitle = element_text(size = 10),
         legend.title = element_blank(),
@@ -267,7 +265,7 @@ EDF <- function(H0, H_l){
 # find_lambda_opt() finds lambda that minimizes the BIC
 # --- BIC = 2*PNLL + log(n)*EDF
 # * test_range = range of lambdas to look over for a minimizer
-# * par = set of gamma parameters to obtain gamma MLEs
+# * param = set of gamma parameters to obtain gamma MLEs
 # * pnll = PNLL evaluating function
 # * d_nll = derivative of PNLL evaluating function
 # * y, X, S defined as before
@@ -323,10 +321,14 @@ find_lambda_opt <- function(test_range, param, pnll, d_nll, y, X, S) {
 # resample n (original sample size) day-death pairs from the original data (with
 # replacement) and refit the model to this sampled data. 
 
-
-# resampling the data is equivalent to re-weighting the terms in log-likelihood
-# by the number of times the day-death pairs are resampled
+# Resampling the data is equivalent to re-weighting the terms in log-likelihood
+# by the number of times the day-death pairs are resampled.
 # -- sum(w*log-likelihood), w = 0, 1, ... (number of corresponding resamples)
+
+# bootstrap_conf_lim() returns non-par. boostrap 95% conf. limits for inf. curve
+# * n = amount of day-death pairs to sample
+# * nrep = amount of confidence limits to produce
+# * param, pnll, d_nll, y, X, lambda, S, X_tilde defined as before
 bootstrap_conf_lim <- function(n, n_rep, 
                                param, pnll, d_nll, y, X, lambda, S, 
                                X_tilde) {
@@ -364,7 +366,9 @@ bootstrap_conf_lim <- function(n, n_rep,
 ######## ---------- VISUALIZING THE MODEL FIT ---------- ########
 #################################################################
 
-# Now call all functions to produce a plot of this information on a graph
+# Now call all functions to produce a plot of this information on a graph.
+
+### --- 1. Set-Up --- ###
 
 # t = start and end days of the data; K = number of basis functions
 t <- c(min(data$julian), max(data$julian)); K <- 80
@@ -374,14 +378,15 @@ X_tilde <- out$X_tilde; X <- out$X; S <- out$S; pd <- out$pd
 # deaths
 y <- data$nhs
 
-# Recalculating the mle for the sanity check case, for use in
-# find_lambda_opt
+### --- 2. Starting Parameters --- ###
+
+# recalculating the MLE for the sanity check case, for use in find_lambda_opt()
 lambda_sanity <- 5*10^-5
 g_mle_sanity <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
                       y = y, X = X, lambda = lambda_sanity, S = S,
                       method = 'BFGS',  control = list(maxit = 1000))
 
-
+### --- 3. Smoothing Parameter Selection --- ###
 
 # search over log(lambda) values
 test_range <- exp(seq(-13,-7,length=50))
@@ -390,8 +395,9 @@ lambda_opt <- find_lambda_opt(test_range,
                               param = g_mle_sanity$par, pnll, d_nll, 
                               y, X, S)
 
+### --- 4. Fit the Curves --- ###
 
-# finding the actual prediction using the actual data, lambda=lambda_opt
+# finding the actual prediction using the actual data, lambda = lambda_opt
 g_mle <- optim(par = g_mle_sanity$par, fn = pnll, gr = d_nll,
                    y = y, X = X, lambda = lambda_opt, S = S,
                    method = 'BFGS')
@@ -399,6 +405,8 @@ g_mle <- optim(par = g_mle_sanity$par, fn = pnll, gr = d_nll,
 b_hat <- exp(g_mle$par)
 mu <- X %*% b_hat
 f <- X_tilde %*% b_hat
+
+### --- 5. Assess Uncertainty --- ###
 
 # n = amount of day-death pairs to sample
 # nrep = amount of confidence limits to produce
@@ -408,18 +416,20 @@ conf_lims <- bootstrap_conf_lim(n, n_rep,
                                 y, X, lambda = lambda_opt, S, 
                                 X_tilde)
 
+### --- 6. Visualize the Results --- ###
 
+# make confidence limits and time range into data frames for ggplot use
 CI_dt <- data.frame(lower = conf_lims[1,], upper = conf_lims[2,])
 range_dt <- data.frame(range = (min(data$julian) - 30):max(data$julian))
 
+# plotting
 data |> ggplot(aes(x = julian, y = nhs)) +
-  geom_point() + 
-  #geom_line() + 
-  geom_line(data = data, aes(x = julian, y = mu, color = 'blue')) +
-  geom_line(data = range_dt, aes(x = range, y = f, color = 'red')) +
-  geom_ribbon(data = range_dt, aes(x = range, y = f, 
+  geom_point() + # actual deaths
+  geom_line(data = data, aes(x = julian, y = mu, color = 'blue')) + # death fit
+  geom_line(data = range_dt, aes(x = range, y = f, color = 'red')) + # infect fit
+  geom_ribbon(data = range_dt, aes(x = range, y = f,
                                    ymin = CI_dt$lower, ymax = CI_dt$upper), 
-              alpha = 0.2) + 
+              alpha = 0.2) + # conf limits
   theme_bw() + 
   labs(x = "Day of the Year", y = "Counts", 
        title = "Daily Infections and Deaths from COVID-19", color = NULL) +
