@@ -1,3 +1,12 @@
+# Zachary Gavin (s2222962): 
+# Shaehroz Khalid (s2869421): 
+# Brandon Causing (s2901457): 
+# division of work was close to 1/3 each
+
+# github: https://github.com/zacgavin1/Extended-statistical-programming.git
+
+# -------------------------------------------------------------------------------
+
 ## GENERAL DESCRIPTION
 
 # The aim of this project is to use data from the year 2020 on daily deaths from 
@@ -11,7 +20,7 @@
 
 
 library(splines) # splineDesign()
-library(numDeriv) # grad() (finite differencing) ### comment out this and deriv check
+
 library(ggplot2) # visuals
 
 
@@ -36,7 +45,6 @@ data <- read.table("engcov.txt", header=T, stringsAsFactor=T)
 modelling <- function(t, K) {
   
   ## --- X_tilde --- ##
-  
   # first and last day
   range_t <- range(t)
   # evenly spaced time intervals (knots) starting 30 days before first death
@@ -146,35 +154,37 @@ d_nll <- function(gamma, y, X, lambda, S, w = rep(1, 150)) {
 
 ##### -------- Testing the Derivative Function -------- #####
 
-# We make sure the derivative function is correct by comparing the output to 
-# finite differencing, an approximation of the derivative.
+# library(numDeriv) # grad() (finite differencing) 
 
-# start and end days of the data
-t <- c(min(data$julian), max(data$julian))
-# number of basis functions
-K <- 80
-# X_tilde, X, S, pd
-out <- modelling(t, K)
-X_tilde <- out$X_tilde; X <- out$X; S <- out$S; pd <- out$pd
-# deaths
-y <- data$nhs
-
-# lambda for testing purposes
-lambda_test <- 1e-05
-
-# find gammas that minimize PNLL using the BFGS method
-g_mle_test <- optim(par = rep(0, 80), fn = pnll, gr = d_nll, 
-                    y = y, X = X, lambda = lambda_test, S = S, 
-                    method = 'BFGS', control = list(maxit = 5000))
-
-# approximate gradient of PNLL 
-num_deriv <- grad(function(g) pnll(g, y, X, lambda_test, S), g_mle_test$par)
-# exact gradient of PNLL
-anal_deriv <- d_nll(g_mle_test$par, y, X, lambda_test, S)
-
-# find the most that the resulting gradients differ from each other
-abs_diff <- abs(num_deriv - anal_deriv) # very small ~ 10^-5, so should be correct 
-rel_diff <- abs_diff / pmax(1e-12, abs(num_deriv), abs(anal_deriv))
+# # We make sure the derivative function is correct by comparing the output to 
+# # finite differencing, an approximation of the derivative.
+#
+# # start and end days of the data
+# t <- c(min(data$julian), max(data$julian))
+# # number of basis functions
+# K <- 80
+# # X_tilde, X, S, pd
+# out <- modelling(t, K)
+# X_tilde <- out$X_tilde; X <- out$X; S <- out$S; pd <- out$pd
+# # deaths
+# y <- data$nhs
+# 
+# # lambda for testing purposes
+# lambda_test <- 1e-05
+# 
+# # find gammas that minimize PNLL using the BFGS method
+# g_mle_test <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
+#                     y = y, X = X, lambda = lambda_test, S = S,
+#                     method = 'BFGS', control = list(maxit = 5000))
+# 
+# approximate gradient of PNLL
+# num_deriv <- grad(function(g) pnll(g, y, X, lambda_test, S), g_mle_test$par)
+# # exact gradient of PNLL
+# anal_deriv <- d_nll(g_mle_test$par, y, X, lambda_test, S)
+# 
+# # find the most that the resulting gradients differ from each other
+# abs_diff <- abs(num_deriv - anal_deriv) # very small ~ 10^-5, so should be correct
+# rel_diff <- abs_diff / pmax(1e-12, abs(num_deriv), abs(anal_deriv))
 
 ######## -------- Preliminary Sanity Check -------- #########
 
@@ -182,37 +192,48 @@ rel_diff <- abs_diff / pmax(1e-12, abs(num_deriv), abs(anal_deriv))
 # fit the model using lambda = 5 * 10^-5 and plot the actual and fitted deaths,
 # as well as the fitted infection curve, f.
 
-# for sanity check
-lambda_sanity <- 5*10^-5
-# find minimizing gammas for PNLL based on sanity check lambda
-g_mle_sanity <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
-                      y = y, X = X, lambda = lambda_sanity, S = S,
-                      method = 'BFGS',  control = list(maxit = 10000))
 
-
-# estimate beta, mu, and f (= X_tilde*beta) from gamma MLE
-b_hat_sanity <- exp(g_mle_sanity$par)
-mu_sanity <- X %*% b_hat_sanity       
-f_sanity <- X_tilde %*% b_hat_sanity
+# # start and end days of the data
+# t <- c(min(data$julian), max(data$julian))
+# # number of basis functions
+# K <- 80
+# # X_tilde, X, S, pd
+# out <- modelling(t, K)
+# X_tilde <- out$X_tilde; X <- out$X; S <- out$S; pd <- out$pd
+# # deaths
+# y <- data$nhs
+# 
+# # for sanity check
+# lambda_sanity <- 5*10^-5
+# # find minimizing gammas for PNLL based on sanity check lambda
+# g_mle_sanity <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
+#                       y = y, X = X, lambda = lambda_sanity, S = S,
+#                       method = 'BFGS',  control = list(maxit = 1000))
+# 
+# 
+# # estimate beta, mu, and f (= X_tilde*beta) from gamma MLE
+# b_hat_sanity <- exp(g_mle_sanity$par)
+# mu_sanity <- X %*% b_hat_sanity       
+# f_sanity <- X_tilde %*% b_hat_sanity
 
 
 # turn range of potential infection days into data frame for plotting purposes
-range_dt <- data.frame(range = (min(data$julian) - 30):max(data$julian))
-
-# plot the sanity check fitted deaths and fitted infections
-data |> ggplot(aes(x = julian, y = nhs)) + 
-  geom_point() + # actual deaths
-  geom_line(aes(x = julian, y = mu_sanity, color = 'blue')) + # fitted deaths
-  geom_line(data = range_dt, aes(x = range, y = f_sanity, color = 'red')) + # fitted infs
-  theme_bw() + 
-  scale_color_discrete(labels = c("Fitted Deaths", "Estimated New Infections")) +
-  labs(title = "Sanity Check", subtitle = "(lambda = 5x10^-5)",
-       x = "Day of the Year", y = "Counts") +
-  theme(plot.subtitle = element_text(size = 10),
-        legend.title = element_blank(),
-        legend.position = c(0.7, 0.8),
-        legend.background = element_blank(),
-        legend.box.background = element_rect(color = 'black'))
+# range_dt <- data.frame(range = (min(data$julian) - 30):max(data$julian))
+# 
+# # plot the sanity check fitted deaths and fitted infections
+# data |> ggplot(aes(x = julian, y = nhs)) + 
+#   geom_point() + # actual deaths
+#   geom_line(aes(x = julian, y = mu_sanity, color = 'blue')) + # fitted deaths
+#   geom_line(data = range_dt, aes(x = range, y = f_sanity, color = 'red')) + # fitted infs
+#   theme_bw() + 
+#   scale_color_discrete(labels = c("Fitted Deaths", "Estimated New Infections")) +
+#   labs(title = "Sanity Check", subtitle = "(lambda = 5x10^-5)",
+#        x = "Day of the Year", y = "Counts") +
+#   theme(plot.subtitle = element_text(size = 10),
+#         legend.title = element_blank(),
+#         legend.position = c(0.7, 0.8),
+#         legend.background = element_blank(),
+#         legend.box.background = element_rect(color = 'black'))
 
 # Remarks: this has now passed the sanity check
 # -- f is very 'wiggly'; a stronger penalty is likely required
@@ -265,7 +286,7 @@ find_lambda_opt <- function(test_range, param, pnll, d_nll, y, X, S) {
     g_mle <- optim(par = param, fn = pnll, gr = d_nll, 
                    y = y, X = X, lambda = lambda, S = S, method = 'BFGS')#,
                    #control = list(abstol = 1e-30, maxit = 100000))
-    converges <- append(converges, g_mle$convergence)
+    # converges <- append(converges, g_mle$convergence) 
     b_hat <- exp(g_mle$par)
     mu_hat <- X %*% b_hat
   
@@ -286,23 +307,13 @@ find_lambda_opt <- function(test_range, param, pnll, d_nll, y, X, S) {
   lambda_opt_index <- BIC == min(BIC)
   lambda_opt <- test_range[lambda_opt_index]
   
-  plot(test_range, BIC)
-  
-  print(converges)
+  # plot(log(test_range), BIC)
+  # 
+  # print(converges)
   
   # output
   lambda_opt
 }
-
-# search over log(lambda) values
-test_range <- exp(seq(-13,-7,length=50))
-# get the optimal lambda over this range
-lambda_opt <- find_lambda_opt(test_range, param = g_mle_sanity$par, pnll, d_nll, y, X, S)
-
-lambda_opt
-
-# note: this is larger than the initial guess of 5*10^-5, validating claim in 
-# sanity check that we needed a bigger penalty
 
 
 
@@ -314,10 +325,6 @@ lambda_opt
 # resample n (original sample size) day-death pairs from the original data (with
 # replacement) and refit the model to this sampled data. 
 
-# amount of day-death pairs to sample
-n <- length(y)
-# amount of confidence limits to produce
-n_rep <- 200
 
 # resampling the data is equivalent to re-weighting the terms in log-likelihood
 # by the number of times the day-death pairs are resampled
@@ -333,10 +340,12 @@ bootstrap_conf_lim <- function(n, n_rep,
   }
 
   # get the optimal gammas for each resampled dataset
+  # The function environment will always include the variables y,X,lambda,S, so
+  # we have omitted them in the definition of the anonymous function
   g_mle <- apply(wb, MARGIN = 2, FUN = function (wb) {
     min <- optim(par = param, fn = pnll, gr = d_nll,
                  y = y, X = X, lambda = lambda, S = S, w = wb,
-                 method = 'BFGS', control=list(1000))
+                 method = 'BFGS', control=list(maxit = 1000))
     min$par
     }
   )
@@ -350,9 +359,6 @@ bootstrap_conf_lim <- function(n, n_rep,
   CI
 }
 
-conf_lims <- bootstrap_conf_lim(n, n_rep, 
-                                param = rep(0, 80), pnll, d_nll, y, X, lambda = lambda_opt, S, 
-                                X_tilde)
 
 
 
@@ -360,9 +366,7 @@ conf_lims <- bootstrap_conf_lim(n, n_rep,
 ######## ---------- VISUALIZING THE MODEL FIT ---------- ########
 #################################################################
 
-
-##### ---- Question 6 ---- #######
-# Now plot all this information on a graph
+# Now call all functions to produce a plot of this information on a graph
 
 # t = start and end days of the data; K = number of basis functions
 t <- c(min(data$julian), max(data$julian)); K <- 80
@@ -372,6 +376,15 @@ X_tilde <- out$X_tilde; X <- out$X; S <- out$S; pd <- out$pd
 # deaths
 y <- data$nhs
 
+# Recalculating the mle for the sanity check case, for use in
+# find_lambda_opt
+lambda_sanity <- 5*10^-5
+g_mle_sanity <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
+                      y = y, X = X, lambda = lambda_sanity, S = S,
+                      method = 'BFGS',  control = list(maxit = 1000))
+
+
+
 # search over log(lambda) values
 test_range <- exp(seq(-13,-7,length=50))
 # get the optimal lambda over this range
@@ -379,12 +392,8 @@ lambda_opt <- find_lambda_opt(test_range,
                               param = g_mle_sanity$par, pnll, d_nll, 
                               y, X, S)
 
+
 # finding the actual prediction using the actual data, lambda=lambda_opt
-
-
-#g_mle <- optim(par=rep(0,80), fn=pnll, gr = d_nll,  y=y, X=X, 
-#               lambda=lambda_opt, S=S, method='BFGS')
-
 g_mle <- optim(par = g_mle_sanity$par, fn = pnll, gr = d_nll,
                    y = y, X = X, lambda = lambda_opt, S = S,
                    method = 'BFGS')
@@ -396,10 +405,6 @@ f <- X_tilde %*% b_hat
 # n = amount of day-death pairs to sample
 # nrep = amount of confidence limits to produce
 n <- length(y); n_rep <- 200
-#conf_lims <- bootstrap_conf_lim(n, n_rep, 
-#                                param = rep(0, 80), pnll, d_nll,
-#                                y, X, lambda = lambda_opt, S, 
-#                                X_tilde)
 
 conf_lims <- bootstrap_conf_lim(n, n_rep, 
                                 param = g_mle$par, pnll, d_nll,
@@ -408,6 +413,7 @@ conf_lims <- bootstrap_conf_lim(n, n_rep,
 
 
 CI_dt <- data.frame(lower = conf_lims[1,], upper = conf_lims[2,])
+range_dt <- data.frame(range = (min(data$julian) - 30):max(data$julian))
 
 data |> ggplot(aes(x = julian, y = nhs)) +
   geom_point() + 
