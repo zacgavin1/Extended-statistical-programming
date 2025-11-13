@@ -9,11 +9,11 @@
 
 ## GENERAL DESCRIPTION
 
-# The aim of this project is to use data from the year 2020 on daily deaths from 
+# The aim of this script is to use data from the year 2020 on daily deaths from 
 # COVID-19 in English hospitals in order to estimate the (unobserved) daily counts 
 # of new infections that ultimately resulted in these deaths through fitting a 
 # deconvolution model. This model is fit through B-splines (smoothly connected 
-# curve segments) and a smoothing penalty (to avoid overfitting the variation).
+# curve segments) and a smoothing penalty (to avoid overfitting beta).
 # After choosing an appropriate smoothing parameter for the fit (based on the BIC 
 # criterion), we assess the uncertainty of the fit through non-parametric bootstrap 
 # confidence limits. Finally, we visualize our findings in a plot.
@@ -22,7 +22,7 @@
 library(splines) # splineDesign()
 library(ggplot2) # visuals
 
-# Tests have been left in (but commented out) for future debugging
+# Tests have been left in (but commented out) for ease of future debugging
 # maxit has been chosen for each optim individually to ensure convergence
 
 # "engcov.txt" contains covid death information
@@ -104,7 +104,7 @@ modelling <- function(t, K) {
 
 
 #################################################################
-######### ----------- SMOOTHING PENALIZATION --------- ##########
+##### ----- LOG-LIKELIHOOD AND DERIVATIVE FUNCTIONS ------ ######
 #################################################################
 
 # We now want to be able to evaluate the penalized negative log-likelihood and
@@ -162,7 +162,7 @@ d_nll <- function(gamma, y, X, lambda, S, w = rep(1, 150)) {
 # library(numDeriv) # grad() (finite differencing) 
 
 # # We make sure the derivative function is correct by comparing the output to 
-# # finite differencing, an approximation of the derivative.
+# # finite differencing, using the package numDeriv
 #
 # # start and end days of the data
 # t <- c(min(data$julian), max(data$julian))
@@ -240,7 +240,7 @@ data |> ggplot(aes(x = julian, y = nhs)) +
         legend.background = element_blank(),
         legend.box.background = element_rect(color = 'black'))
 
-# -- f is very 'wiggly'; a stronger penalty is likely required
+# -- f is quite 'wiggly'; a stronger penalty is likely required
 
 
 
