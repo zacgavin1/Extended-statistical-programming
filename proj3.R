@@ -211,12 +211,10 @@ g_mle_sanity <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
                       y = y, X = X, lambda = lambda_sanity, S = S,
                       method = 'BFGS',  control = list(maxit = 1000))
 
-
 # estimate beta, mu, and f (= X_tilde*beta) from gamma MLE
 b_hat_sanity <- exp(g_mle_sanity$par)
 mu_sanity <- X %*% b_hat_sanity
 f_sanity <- X_tilde %*% b_hat_sanity
-
 
 # turn range of potential infection days into data frame for plotting purposes
 range_dt <- data.frame(range = (min(data$julian) - 30):max(data$julian))
