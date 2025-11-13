@@ -273,11 +273,7 @@ EDF <- function(H0, H_l){
 # find_lambda_opt() finds lambda that minimizes the BIC
 # --- BIC = 2*PNLL + log(n)*EDF
 # * test_range = range of lambdas to look over for a minimizer
-<<<<<<< HEAD
-# * param = set of gamma parameters to obtain gamma MLEs
-=======
 # * param = starting gamma value for optim 
->>>>>>> 6459a28572f49ca066625fd2ffa7adc2bd0caac2
 # * pnll = PNLL evaluating function
 # * d_nll = derivative of PNLL evaluating function
 # * y, X, S defined as before
@@ -334,23 +330,13 @@ find_lambda_opt <- function(test_range, param, pnll, d_nll, y, X, S) {
 # resample n (original sample size) day-death pairs from the original data (with
 # replacement) and refit the model to this sampled data. 
 
-<<<<<<< HEAD
-# Resampling the data is equivalent to re-weighting the terms in log-likelihood
-# by the number of times the day-death pairs are resampled.
-# -- sum(w*log-likelihood), w = 0, 1, ... (number of corresponding resamples)
-
-# bootstrap_conf_lim() returns non-par. boostrap 95% conf. limits for inf. curve
-# * n = amount of day-death pairs to sample
-# * nrep = amount of confidence limits to produce
-# * param, pnll, d_nll, y, X, lambda, S, X_tilde defined as before
-=======
 
 # resampling the data is equivalent to re-weighting the terms in log-likelihood
 # by the number of times the day-death pairs are resampled
 # -- sum(w[i]*log-lik[i]), length(w)=150, w[i] = 0, 1, ... (number of times i resampled)
 
 # n=length(y); n_rep = number of bootstrap samples; param = starting gamma for optim
->>>>>>> 6459a28572f49ca066625fd2ffa7adc2bd0caac2
+
 bootstrap_conf_lim <- function(n, n_rep, 
                                param, pnll, d_nll, y, X, lambda, S, 
                                X_tilde) {
@@ -388,13 +374,7 @@ bootstrap_conf_lim <- function(n, n_rep,
 ######## ---------- VISUALIZING THE MODEL FIT ---------- ########
 #################################################################
 
-<<<<<<< HEAD
-# Now call all functions to produce a plot of this information on a graph.
-
-### --- 1. Set-Up --- ###
-=======
 # Now call all functions to produce a plot of the information 
->>>>>>> 6459a28572f49ca066625fd2ffa7adc2bd0caac2
 
 # t = start and end days of the data; K = number of basis functions
 t <- c(min(data$julian), max(data$julian)); K <- 80
@@ -404,20 +384,12 @@ X_tilde <- out$X_tilde; X <- out$X; S <- out$S; pd <- out$pd
 # deaths
 y <- data$nhs
 
-<<<<<<< HEAD
-### --- 2. Starting Parameters --- ###
-
-# recalculating the MLE for the sanity check case, for use in find_lambda_opt()
-=======
-# Recalculating the mle for the sanity check case, for use as optim starting value
+# recalculate the mle for the sanity check case, for use as optim starting value
 # in find_lambda_opt
->>>>>>> 6459a28572f49ca066625fd2ffa7adc2bd0caac2
 lambda_sanity <- 5*10^-5
 g_mle_sanity <- optim(par = rep(0, 80), fn = pnll, gr = d_nll,
                       y = y, X = X, lambda = lambda_sanity, S = S,
                       method = 'BFGS',  control = list(maxit = 1000))
-
-### --- 3. Smoothing Parameter Selection --- ###
 
 # search over log(lambda) values
 test_range <- exp(seq(-13,-7,length=50))
@@ -426,23 +398,17 @@ lambda_opt <- find_lambda_opt(test_range,
                               param = g_mle_sanity$par, pnll, d_nll, 
                               y, X, S)
 
-### --- 4. Fit the Curves --- ###
 
 # finding the actual prediction using the actual data, lambda = lambda_opt
 g_mle <- optim(par = g_mle_sanity$par, fn = pnll, gr = d_nll,
                    y = y, X = X, lambda = lambda_opt, S = S,
                    method = 'BFGS')
-
+# get the fits
 b_hat <- exp(g_mle$par)
 mu <- X %*% b_hat
 f <- X_tilde %*% b_hat
 
-<<<<<<< HEAD
-### --- 5. Assess Uncertainty --- ###
-
-=======
-# Finding the confidence bounds
->>>>>>> 6459a28572f49ca066625fd2ffa7adc2bd0caac2
+# finding the confidence bounds
 # n = amount of day-death pairs to sample
 # nrep = number of confidence limits to produce
 n <- length(y); n_rep <- 200
@@ -451,41 +417,39 @@ conf_lims <- bootstrap_conf_lim(n, n_rep,
                                 y, X, lambda = lambda_opt, S, 
                                 X_tilde)
 
-<<<<<<< HEAD
-### --- 6. Visualize the Results --- ###
-
-# make confidence limits and time range into data frames for ggplot use
-=======
 # getting data into right form for ggplot
->>>>>>> 6459a28572f49ca066625fd2ffa7adc2bd0caac2
 CI_dt <- data.frame(lower = conf_lims[1,], upper = conf_lims[2,])
 range_dt <- data.frame(range = (min(data$julian) - 30):max(data$julian))
 
 # plotting
 data |> ggplot(aes(x = julian, y = nhs)) +
-<<<<<<< HEAD
-  geom_point() + # actual deaths
-  geom_line(data = data, aes(x = julian, y = mu, color = 'blue')) + # death fit
-  geom_line(data = range_dt, aes(x = range, y = f, color = 'red')) + # infect fit
-  geom_ribbon(data = range_dt, aes(x = range, y = f,
-=======
-  geom_point() + 
-  geom_line(data = data, aes(x = julian, y = mu, color = 'blue')) +
-  geom_line(data = range_dt, aes(x = range, y = f, color = 'red')) +
+  geom_point(aes(color = 'Observed Deaths')) + 
+  geom_line(data = data, 
+            aes(x = julian, y = mu, color = 'Fitted Deaths'), 
+            linewidth = 0.75) +
+  geom_line(data = range_dt, 
+            aes(x = range, y = f, color = 'Estimated New Infections'), 
+            linewidth = 0.75) +
   geom_ribbon(data = range_dt, aes(x = range, y = f, 
->>>>>>> 6459a28572f49ca066625fd2ffa7adc2bd0caac2
-                                   ymin = CI_dt$lower, ymax = CI_dt$upper), 
-              alpha = 0.2) + # conf limits
+                                   ymin = CI_dt$lower, ymax = CI_dt$upper,
+                                   fill = 'Confidence Limits'), 
+              alpha = 0.2, color = NA) + # conf limits
   theme_bw() + 
   labs(x = "Day of the Year", y = "Counts", 
-       title = "Daily Infections and Deaths from COVID-19", color = NULL) +
-  scale_color_discrete(labels = c("Fitted Deaths", "Estimated New Infections")) + 
+       title = "Daily Infections and Deaths from COVID-19", 
+       color = NULL, fill = NULL) +
+  scale_color_manual(values = c('Observed Deaths' = 'black', 
+                                'Fitted Deaths' = 'blue', 
+                                'Estimated New Infections' = 'red'),
+                     breaks = c('Observed Deaths',
+                                'Fitted Deaths',
+                                'Estimated New Infections')) +
+  scale_fill_manual(values = c('Confidence Limits' = 'grey40'),
+                    breaks = 'Confidence Limits') +
   theme(legend.position = c(0.7, 0.8),
+        legend.spacing.y = unit(-5, "pt"),
         legend.background = element_blank(),
         legend.box.background = element_rect(color = 'black'),
         plot.title = element_text(face = "bold", size = 15))
   
-
-
-
 
